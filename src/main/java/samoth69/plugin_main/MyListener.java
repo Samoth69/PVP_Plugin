@@ -9,21 +9,25 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.inventory.InventoryAction;
+import org.bukkit.event.inventory.InventoryEvent;
+import org.bukkit.event.inventory.InventoryInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.inventory.ItemFlag;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.metadata.MetadataValue;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scoreboard.*;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Random;
-import java.util.UUID;
+import java.util.*;
 
 public class MyListener implements Listener {
 
@@ -66,6 +70,11 @@ public class MyListener implements Listener {
         if (!GameStarted){
             Location l = new Location(Bukkit.getWorlds().get(0), SpawnLocation.getX(), SpawnLocation.getY(), SpawnLocation.getZ());
             player.teleport(l);
+            player.getInventory().clear();
+            ItemStack is = new ItemStack(Material.WOOL, 1);
+            ItemMeta im = is.getItemMeta();
+            im.setDisplayName("Team");
+            player.getInventory().setItem(4, is); //4: milieu de la hotbar
         }
     }
 
@@ -80,6 +89,11 @@ public class MyListener implements Listener {
         score = objective.getScore(ChatColor.WHITE + "Teams: " + ChatColor.GOLD + "3");
         score.setScore(14);
         scores.add(score);
+    }
+
+    @EventHandler
+    public void InventoryEvent(InventoryEvent e) {
+        
     }
 
     //génération auto du spawn pour la partie (sol en stained glass de couleur aléatoire avec des murs en stained glass pane de couleur aléatoire)
