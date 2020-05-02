@@ -1,0 +1,4 @@
+name: PVPPlugin
+main: samoth69.plugin_main.PVPPluginMain
+version: 1.0
+load: POSTWORLD
