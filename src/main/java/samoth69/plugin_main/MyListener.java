@@ -1,29 +1,18 @@
 package samoth69.plugin_main;
 
-import net.md_5.bungee.api.ChatMessageType;
-import net.md_5.bungee.api.chat.BaseComponent;
-import net.md_5.bungee.api.chat.TextComponent;
-import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
-import org.bukkit.Location;
-import org.bukkit.Material;
+import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
-import org.bukkit.event.inventory.InventoryAction;
-import org.bukkit.event.inventory.InventoryEvent;
-import org.bukkit.event.inventory.InventoryInteractEvent;
+import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.metadata.MetadataValue;
-import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scoreboard.*;
 
@@ -41,12 +30,15 @@ public class MyListener implements Listener {
     private Scoreboard sb = sm.getNewScoreboard();
     private Objective objective = sb.registerNewObjective("PVPObjective", "dummy");
     private ArrayList<Score> scores = new ArrayList<>();
+    private short nombreDeTeams = 4;
+    private TeamGUI teamGUI = new TeamGUI(nombreDeTeams);
 
     MyListener(FileConfiguration config, JavaPlugin jp)
     {
         this.config = config;
         this.SpawnLocation = (Position)this.config.get("SpawnCoord");
         this.jp = jp;
+        this.jp.getServer().getPluginManager().registerEvents(teamGUI, jp);
     }
 
     // This method checks for incoming players and sends them a message
@@ -92,8 +84,17 @@ public class MyListener implements Listener {
     }
 
     @EventHandler
-    public void InventoryEvent(InventoryEvent e) {
-        
+    public void playerInteractEvent(PlayerInteractEvent e) {
+        if (!GameStarted && e.isBlockInHand()) {
+            teamGUI.openInventory(e.getPlayer());
+        }
+    }
+
+    @EventHandler
+    public void playerDropItem(PlayerDropItemEvent e) {
+        if (!GameStarted) {
+            e.setCancelled(true);
+        }
     }
 
     //génération auto du spawn pour la partie (sol en stained glass de couleur aléatoire avec des murs en stained glass pane de couleur aléatoire)
@@ -130,8 +131,12 @@ public class MyListener implements Listener {
         //Random rand = new Random();
         Location l = new Location(Bukkit.getWorlds().get(0), pos.getX(), pos.getY(), pos.getZ());
         Block b = l.getBlock();
+
+        //String s = Utils.getRandomGlassColor();
+        //b.setMetadata("color", new FixedMetadataValue(jp, s));
+
+        b.setData((byte)new Random().nextInt(16)); //obsolète mais pas mieux :(
         b.setType(mat);
-        b.setData((byte) new Random().nextInt(16)); //[0;15]
     }
 
     //Stores data for damage events
