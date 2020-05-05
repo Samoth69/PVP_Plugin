@@ -11,6 +11,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
@@ -131,7 +132,7 @@ public class Main implements Listener, CommandExecutor {
         equipes.clear();
         for (int i = 0; i < numberOfTeams; i++) {
             //jp.getLogger().info(Utils.getRandomChatColor().toString());
-            equipes.add(new Equipe("Equipe " + i, Utils.getRandomShortColor(), sb, objective));
+            equipes.add(new Equipe("Equipe " + i, (short)i, sb, objective));
 
         }
     }
@@ -221,6 +222,13 @@ public class Main implements Listener, CommandExecutor {
 
     @EventHandler
     public void BlockBreakEvent(BlockBreakEvent e) {
+        if (!GameStarted) {
+            e.setCancelled(true);
+        }
+    }
+
+    @EventHandler
+    public void BlockPlaceEvent(BlockPlaceEvent e) {
         if (!GameStarted) {
             e.setCancelled(true);
         }

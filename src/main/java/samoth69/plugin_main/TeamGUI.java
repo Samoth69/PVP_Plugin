@@ -69,13 +69,13 @@ public class TeamGUI implements InventoryHolder, Listener {
             for (Equipe e : equipes) {
                 StringBuilder sb = new StringBuilder();
                 sb.append(ChatColor.RESET);
-                sb.append("Joueurs dans cette équipe:\n");
+                sb.append("Joueurs dans cette équipe:\r\n");
                 if (e.getJoueurs().size() > 0) {
                     for (Joueur j: e.getJoueurs()) {
                         sb.append(e.getChatColor());
                         sb.append("- ");
                         sb.append(j.getPseudo());
-                        sb.append("\n");
+                        sb.append("\n\n");
                     }
                 } else {
                     sb.append(ChatColor.ITALIC);
