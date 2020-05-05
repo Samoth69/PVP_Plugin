@@ -2,3 +2,7 @@ name: PVPPlugin
 main: samoth69.plugin_main.PVPPluginMain
 version: 1.0
 load: POSTWORLD
+commands:
+  pvp:
+    description: pvp plugin command. type '/pvp help' for more info
+    usage: /<command>

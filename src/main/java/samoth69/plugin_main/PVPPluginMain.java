@@ -1,13 +1,12 @@
 package samoth69.plugin_main;
 
-import com.sun.org.apache.xpath.internal.operations.String;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class PVPPluginMain extends JavaPlugin {
 
     private FileConfiguration config = getConfig();
-    private MyListener listener;
+    private Main listener;
 
     @Override
     public void onEnable() {
@@ -20,8 +19,9 @@ public class PVPPluginMain extends JavaPlugin {
         config.options().copyDefaults(true);
         saveDefaultConfig();
 
-        listener = new MyListener(config, this);
+        listener = new Main(config, this);
         getServer().getPluginManager().registerEvents(listener, this);
+        this.getCommand("pvp").setExecutor(listener);
     }
 
     @Override
