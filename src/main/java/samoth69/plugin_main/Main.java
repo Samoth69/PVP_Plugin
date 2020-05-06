@@ -17,35 +17,46 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scoreboard.*;
 
 import java.util.*;
+import java.util.logging.Logger;
 
 public class Main implements Listener, CommandExecutor {
 
     private FileConfiguration config;
     private Position SpawnLocation;
-    private HashMap<UUID, Joueur> Joueurs = new HashMap<UUID, Joueur>();
+    private HashMap<UUID, Joueur> joueurs = new HashMap<>();
     private boolean SpawnStructureGenerated = false;
     private boolean GameStarted = false;
     private JavaPlugin jp;
     private ScoreboardManager sm = Bukkit.getScoreboardManager();
     private Scoreboard sb = sm.getNewScoreboard();
     private Objective objective = sb.registerNewObjective("PVPObjective", "dummy");
-    private ArrayList<Score> scores = new ArrayList<>();
-    private short nombreDeTeams = 4;
+    private Score scoreNumJoueurs;
+    protected static int nombreJoueursTotal = 0;
+    protected static short numberOfAliveTeam = 0;
+    protected static short numberOfTeams = 0;
     private TeamGUI teamGUI = new TeamGUI();
     private ArrayList<Equipe> equipes = new ArrayList<>();
+    private ArrayList<String> scoreboardTextBuffer = new ArrayList<>(); //la première ligne est le titre.
+    private static final String dateDuJour = getDate();
+    private static final String startText = ChatColor.DARK_GRAY + "≫ " + ChatColor.RESET;
 
     Main(FileConfiguration config, JavaPlugin jp)
     {
         this.config = config;
         this.SpawnLocation = (Position)this.config.get("SpawnCoord");
         this.jp = jp;
-        this.jp.getServer().getPluginManager().registerEvents(teamGUI, jp);
+        this.objective.setDisplayName("          UHC          ");
+        this.objective.setDisplaySlot(DisplaySlot.SIDEBAR);
+        this.scoreNumJoueurs = objective.getScore("Joueurs: " + nombreJoueursTotal);
+        this.scoreNumJoueurs.setScore(15);
+        //this.jp.getServer().getPluginManager().registerEvents(teamGUI, jp);
     }
 
     // This method checks for incoming players and sends them a message
@@ -53,15 +64,13 @@ public class Main implements Listener, CommandExecutor {
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
 
-        if (!Joueurs.containsKey(player.getUniqueId())) {
-            Joueurs.put(player.getUniqueId(), new Joueur(player));
+        if (!joueurs.containsKey(player.getUniqueId())) {
+            joueurs.put(player.getUniqueId(), new Joueur(player));
             if (config.getBoolean("TeleportOnConnect")) {
                 if (!SpawnStructureGenerated)
                 {
                     genSpawnStructure(SpawnLocation, (short)15);
                     SpawnStructureGenerated = true;
-                    initScoreboard();
-                    player.setScoreboard(sb);
                 }
             }
         }
@@ -74,6 +83,19 @@ public class Main implements Listener, CommandExecutor {
             ItemMeta im = is.getItemMeta();
             im.setDisplayName("Team");
             player.getInventory().setItem(4, is); //4: milieu de la hotbar
+            nombreJoueursTotal++;
+            updateScoreboard();
+        }
+    }
+
+    @EventHandler
+    public void onPlayerLeft(PlayerQuitEvent e) {
+        if (!GameStarted) {
+            nombreJoueursTotal--;
+            Joueur j = joueurs.get(e.getPlayer().getUniqueId());
+            j.removeTeam();
+            joueurs.remove(e.getPlayer().getUniqueId());
+            updateScoreboard();
         }
     }
 
@@ -90,10 +112,40 @@ public class Main implements Listener, CommandExecutor {
             if (args[0].equals("help")) {
                 sender.sendMessage(getCommandHelp());
             } else if(args[0].toLowerCase().equals("setteamnumber")) {
-                if (StringUtils.isNumeric(args[1])) {
-                    updateNumberOfTeams(Integer.parseInt(args[1]));
+                if (args[1] != null) {
+                    if (StringUtils.isNumeric(args[1])) {
+                        updateNumberOfTeams(Integer.parseInt(args[1]));
+                    } else {
+                        sender.sendMessage(ChatColor.RED + "This is not a valid number");
+                    }
                 } else {
-                    sender.sendMessage(ChatColor.RED + "This is not a valid number");
+                    sender.sendMessage(ChatColor.RED + "Expected a number after setTeamNumber");
+                }
+            } else if(args[0].toLowerCase().equals("debug")) {
+                Logger l = jp.getLogger();
+                l.info("Teams:");
+                for (Equipe e : equipes) {
+                    l.info("Teamname: " + e.getTeamName());
+                    if (e.getJoueurs().size() > 0) {
+                        for (Joueur j : e.getJoueurs()) {
+                            l.info("TeamUser: " + j.getPseudo());
+                            l.info("TeamUserTeam:" + j.getEquipe().getTeamName());
+                        }
+                    } else {
+                        l.info("not player on this team");
+                    }
+                    l.info("---");
+                }
+                l.info("----------------------");
+                l.info("Joueurs:");
+                for (Map.Entry<UUID, Joueur> j : joueurs.entrySet()) {
+                    l.info("pseudo: " + j.getValue().getPseudo());
+                    l.info("object UUID: " + j.getValue().getUUID());
+                    l.info("hash UUID: " + j.getKey());
+                    if (j.getValue().getEquipe() != null)
+                        l.info("team: " + j.getValue().getEquipe().getTeamName());
+                    else
+                        l.info("team: none");
                 }
             } else {
                 sender.sendMessage(ChatColor.RED + "Invalid argument (not reconized)");
@@ -111,7 +163,7 @@ public class Main implements Listener, CommandExecutor {
         return sb.toString();
     }
 
-    private void initScoreboard() {
+    /*private void initScoreboard() {
         objective.setDisplaySlot(DisplaySlot.SIDEBAR);
         objective.setDisplayName(ChatColor.RED + "          UHC          ");
 
@@ -122,18 +174,32 @@ public class Main implements Listener, CommandExecutor {
         score = objective.getScore(ChatColor.WHITE + "Equipes: " + ChatColor.GOLD + equipes.size());
         score.setScore(14);
         scores.add(score);
-    }
+    }*/
 
     private void updateScoreboard() {
-        //TODO
+        scoreboardTextBuffer.clear();
+        scoreboardTextBuffer.add(ChatColor.YELLOW + "UHC " + ChatColor.DARK_GRAY + "| ");
+        scoreboardTextBuffer.add(startText + ChatColor.DARK_GRAY + dateDuJour);
+        scoreboardTextBuffer.add(startText + ChatColor.GRAY + "équipes: " + ChatColor.GOLD + numberOfTeams + ChatColor.DARK_GRAY + " (" + ChatColor.GRAY + nombreJoueursTotal + ChatColor.DARK_GRAY + ")"); //ligne de l'équipe
+
+        for (Equipe e: equipes) {
+            e.updateScoreboard(scoreboardTextBuffer);
+        }
     }
+
+    final String[] caractere = {"♥", "♦", "♣", "♠"};
 
     private void updateNumberOfTeams(int numberOfTeams) {
         equipes.clear();
+        short color = 0;
+        short prefixCounter = 0;
         for (int i = 0; i < numberOfTeams; i++) {
-            //jp.getLogger().info(Utils.getRandomChatColor().toString());
-            equipes.add(new Equipe("Equipe " + i, (short)i, sb, objective));
-
+            equipes.add(new Equipe(caractere[prefixCounter], "Equipe " + caractere[prefixCounter], (short)i, color, sm, this));
+            color++;
+            if (color >= 16) { //on exclue la couleur noir car pas super lisible. si on dépasse les 16 équipes, on repart à 0
+                color = 0;
+                prefixCounter++;
+            }
         }
     }
 
@@ -157,7 +223,7 @@ public class Main implements Listener, CommandExecutor {
     {
         if (!(e.getInventory().getHolder() instanceof TeamGUI)) return;
 
-        //e.setCancelled(false);
+        e.setCancelled(true);
 
         final ItemStack clickedItem = e.getCurrentItem();
 
@@ -165,9 +231,19 @@ public class Main implements Listener, CommandExecutor {
         if (clickedItem == null || clickedItem.getType() == Material.AIR) return;
 
         final Player p = (Player) e.getWhoClicked();
+        final Joueur j = joueurs.get(p.getUniqueId());
+        final Equipe eq = equipes.get(e.getRawSlot());
 
         // Using slots click is a best option for your inventory click's
-        p.sendMessage("You clicked at slot " + e.getRawSlot());
+        //p.sendMessage("You clicked at slot " + e.getRawSlot());
+        if (j.setEquipe(eq)) {
+            p.sendMessage("Vous avez rejoints " + j.getEquipe().getChatColor() + j.getEquipe().getTeamName());
+        } else {
+            p.sendMessage(ChatColor.RED + "Vous déjà dans cette équipe");
+        }
+
+        teamGUI.updateTeams(equipes);
+        updateScoreboard();
     }
 
     //génération auto du spawn pour la partie (sol en stained glass de couleur aléatoire avec des murs en stained glass pane de couleur aléatoire)
@@ -232,5 +308,18 @@ public class Main implements Listener, CommandExecutor {
         if (!GameStarted) {
             e.setCancelled(true);
         }
+    }
+
+    private static String getDate() {
+        // Choose time zone in which you want to interpret your Date
+        Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("Europe/Paris"));
+        StringBuilder sb = new StringBuilder();
+        sb.append(cal.get(Calendar.DAY_OF_MONTH));
+        sb.append("/");
+        sb.append(cal.get(Calendar.MONTH));
+        sb.append("/");
+        sb.append(cal.get(Calendar.YEAR));
+
+        return sb.toString();
     }
 }

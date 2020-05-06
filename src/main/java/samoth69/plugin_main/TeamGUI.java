@@ -15,21 +15,17 @@ import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
+import java.lang.reflect.Array;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 public class TeamGUI implements InventoryHolder, Listener {
     private Inventory inv;
-    //private int numberOfTeams;
 
     public TeamGUI(/*int numberOfTeams*/) {
         // Create a new inventory, with "this" owner for comparison with other inventories, a size of nine, called example
         inv = Bukkit.createInventory(this, 45, "Choisie ton équipe");
-
-        //this.numberOfTeams = numberOfTeams;
-
-        // Put the items into the inventory
-        //initializeItems();
     }
 
     @Override
@@ -38,16 +34,8 @@ public class TeamGUI implements InventoryHolder, Listener {
         return inv;
     }
 
-    // You can call this whenever you want to put the items in
-    /*public void initializeItems()
-    {
-        //inv.addItem(createGuiItem(Material.DIAMOND_SWORD, "Example Sword", "§aFirst line of the lore", "§bSecond line of the lore"));
-        //inv.addItem(createGuiItem(Material.IRON_HELMET, "§bExample Helmet", "§aFirst line of the lore", "§bSecond line of the lore"));
-        inv.addItem(createGuiItem(Material.WOOL, "Equipe "+ ChatColor.BLUE + "Bleu", (short)3));
-    }*/
-
     // Nice little method to create a gui item with a custom name, and description
-    protected ItemStack createGuiItem(final Material material, final String name, final short couleur, final String... lore)
+    protected ItemStack createGuiItem(final Material material, final String name, final short couleur, final ArrayList<String> lore)
     {
         final ItemStack item = new ItemStack(material, 1, couleur);
         final ItemMeta meta = item.getItemMeta();
@@ -56,7 +44,9 @@ public class TeamGUI implements InventoryHolder, Listener {
         meta.setDisplayName(name);
 
         // Set the lore of the item
-        meta.setLore(Arrays.asList(lore));
+        meta.setLore(lore);
+
+        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
 
         item.setItemMeta(meta);
 
@@ -64,24 +54,21 @@ public class TeamGUI implements InventoryHolder, Listener {
     }
 
     public void updateTeams(List<Equipe> equipes) {
-        inv.clear();
+        //inv.clear();
+        int index = 0;
         if (equipes.size() != 0) {
             for (Equipe e : equipes) {
-                StringBuilder sb = new StringBuilder();
-                sb.append(ChatColor.RESET);
-                sb.append("Joueurs dans cette équipe:\r\n");
+                ArrayList<String> lore = new ArrayList<>();
+                lore.add(ChatColor.RESET + "Joueurs dans cette équipe:");
                 if (e.getJoueurs().size() > 0) {
                     for (Joueur j: e.getJoueurs()) {
-                        sb.append(e.getChatColor());
-                        sb.append("- ");
-                        sb.append(j.getPseudo());
-                        sb.append("\n\n");
+                        lore.add(e.getChatColor() + "- " + j.getPseudo());
                     }
                 } else {
-                    sb.append(ChatColor.ITALIC);
-                    sb.append("Aucun joueur dans cette équipe");
+                    lore.add(ChatColor.ITALIC + "Aucun joueur dans cette équipe");
                 }
-                inv.addItem(createGuiItem(Material.WOOL, "Equipe " + e.getChatColor() + e.getTeamName(), e.getCouleurEquipe(), sb.toString()));
+                inv.setItem(index, createGuiItem(Material.WOOL, "Equipe " + e.getChatColor() + e.getTeamName(), e.getCouleurEquipe(), lore));
+                index++;
             }
         }
     }
