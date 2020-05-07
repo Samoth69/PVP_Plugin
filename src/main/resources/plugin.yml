@@ -6,3 +6,4 @@ commands:
   pvp:
     description: pvp plugin command. type '/pvp help' for more info
     usage: /<command>
+depend: [TitleAPI, ActionBarAPI]

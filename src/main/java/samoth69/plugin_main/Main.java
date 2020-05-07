@@ -1,5 +1,6 @@
 package samoth69.plugin_main;
 
+import com.connorlinfoot.titleapi.TitleAPI;
 import org.apache.commons.lang.StringUtils;
 import org.bukkit.*;
 import org.bukkit.block.Block;
@@ -21,10 +22,13 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scoreboard.*;
 
 import java.util.*;
 import java.util.logging.Logger;
+
+import static org.bukkit.Bukkit.getServer;
 
 public class Main implements Listener, CommandExecutor {
 
@@ -32,31 +36,47 @@ public class Main implements Listener, CommandExecutor {
     private Position SpawnLocation;
     private HashMap<UUID, Joueur> joueurs = new HashMap<>();
     private boolean SpawnStructureGenerated = false;
-    private boolean GameStarted = false;
+    //private boolean GameStarted = false;
+    private GameStatus gameStatus = GameStatus.SERVER_STARTED;
+    private enum GameStatus {
+        SERVER_STARTED, //status par défaut
+        BEFORE_START, //status avant que les joueurs sois larguer au sol
+        GAME_STARTED, //game en cours. le chrono démare lorsque le serveur passe dans ce mode
+        GAME_FINISHED; //lorsque la partie est fini
+    }
     private JavaPlugin jp;
     private ScoreboardManager sm = Bukkit.getScoreboardManager();
     private Scoreboard sb = sm.getNewScoreboard();
-    private Objective objective = sb.registerNewObjective("PVPObjective", "dummy");
-    private Score scoreNumJoueurs;
-    protected static int nombreJoueursTotal = 0;
-    protected static short numberOfAliveTeam = 0;
-    protected static short numberOfTeams = 0;
+    //private Objective objective = sb.registerNewObjective("PVPObjective", "dummy");
+    //private Score scoreNumJoueurs;
     private TeamGUI teamGUI = new TeamGUI();
     private ArrayList<Equipe> equipes = new ArrayList<>();
     private ArrayList<String> scoreboardTextBuffer = new ArrayList<>(); //la première ligne est le titre.
-    private static final String dateDuJour = getDate();
-    private static final String startText = ChatColor.DARK_GRAY + "≫ " + ChatColor.RESET;
+    public static final String dateDuJour = getDate();
+    public static final String startText = ChatColor.DARK_GRAY + "≫ " + ChatColor.RESET;
+    private BukkitRunnable startCounter;
 
     Main(FileConfiguration config, JavaPlugin jp)
     {
         this.config = config;
         this.SpawnLocation = (Position)this.config.get("SpawnCoord");
         this.jp = jp;
-        this.objective.setDisplayName("          UHC          ");
-        this.objective.setDisplaySlot(DisplaySlot.SIDEBAR);
-        this.scoreNumJoueurs = objective.getScore("Joueurs: " + nombreJoueursTotal);
-        this.scoreNumJoueurs.setScore(15);
-        //this.jp.getServer().getPluginManager().registerEvents(teamGUI, jp);
+
+        startCounter = new BukkitRunnable() {
+            private Calendar cal = Calendar.getInstance(); //temps de démarage
+            private int counter = 5;
+
+            @Override
+            public void run() {
+                for (Map.Entry<UUID, Joueur> j : joueurs.entrySet()) {
+                    TitleAPI.sendTitle(j.getValue().getJoueur(), 0, 20, 5, ChatColor.RED + String.valueOf(counter), "Démarrage");
+                    counter--;
+                    if (counter <= 0) {
+                        this.cancel();
+                    }
+                }
+            }
+        };
     }
 
     // This method checks for incoming players and sends them a message
@@ -65,7 +85,7 @@ public class Main implements Listener, CommandExecutor {
         Player player = event.getPlayer();
 
         if (!joueurs.containsKey(player.getUniqueId())) {
-            joueurs.put(player.getUniqueId(), new Joueur(player));
+            joueurs.put(player.getUniqueId(), new Joueur(player, sm));
             if (config.getBoolean("TeleportOnConnect")) {
                 if (!SpawnStructureGenerated)
                 {
@@ -75,7 +95,7 @@ public class Main implements Listener, CommandExecutor {
             }
         }
 
-        if (!GameStarted){
+        if (gameStatus == GameStatus.SERVER_STARTED){
             Location l = new Location(Bukkit.getWorlds().get(0), SpawnLocation.getX(), SpawnLocation.getY(), SpawnLocation.getZ());
             player.teleport(l);
             player.getInventory().clear();
@@ -83,15 +103,21 @@ public class Main implements Listener, CommandExecutor {
             ItemMeta im = is.getItemMeta();
             im.setDisplayName("Team");
             player.getInventory().setItem(4, is); //4: milieu de la hotbar
-            nombreJoueursTotal++;
+            getServer().getPluginManager().registerEvents(joueurs.get(player.getUniqueId()), jp);
             updateScoreboard();
+
+        } else {
+            if (!joueurs.containsKey(player.getUniqueId())) {
+                player.kickPlayer("Game already started !");
+            } else {
+                //Bukkit.broadcastMessage("Reconnexion de " + player.getDisplayName());
+            }
         }
     }
 
     @EventHandler
     public void onPlayerLeft(PlayerQuitEvent e) {
-        if (!GameStarted) {
-            nombreJoueursTotal--;
+        if (gameStatus == GameStatus.SERVER_STARTED) {
             Joueur j = joueurs.get(e.getPlayer().getUniqueId());
             j.removeTeam();
             joueurs.remove(e.getPlayer().getUniqueId());
@@ -147,11 +173,51 @@ public class Main implements Listener, CommandExecutor {
                     else
                         l.info("team: none");
                 }
+            } else if(args[0].toLowerCase().equals("start")) {
+                startGame(sender);
             } else {
                 sender.sendMessage(ChatColor.RED + "Invalid argument (not reconized)");
             }
         }
         return true;
+    }
+
+    //démarre la partie
+    private void startGame(CommandSender sender) {
+        if (equipes.size() <= 0) {
+            sender.sendMessage(ChatColor.RED + "Aucune équipe, impossible de lancer la game");
+        } else {
+            if (gameStatus == GameStatus.SERVER_STARTED) {
+                sender.sendMessage("Starting Game");
+                startCounter.runTaskTimer(this.jp, 0, 20);
+            } else {
+                sender.sendMessage(ChatColor.RED + "La partie est déjà lancé ou terminé");
+            }
+        }
+    }
+
+    //renvoie le nombre de joueur dans la game (mort ou en vie)
+    public int getNumberOfPlayer() {
+        return joueurs.size();
+    }
+
+    //renvoie le nombre de joueur encore en vie
+    public int getNumberOfTeamsAlive() {
+        int counter = 0;
+        for (Equipe e: equipes) {
+            if (e.isTeamAlive())
+                counter++;
+        }
+        return counter;
+    }
+
+    public int getNumberOfAlivePlayers() {
+        int counter = 0;
+        for (Map.Entry<UUID, Joueur> j: joueurs.entrySet()) {
+            if (j.getValue().isAlive())
+                counter++;
+        }
+        return counter;
     }
 
     private String getCommandHelp() {
@@ -163,24 +229,16 @@ public class Main implements Listener, CommandExecutor {
         return sb.toString();
     }
 
-    /*private void initScoreboard() {
-        objective.setDisplaySlot(DisplaySlot.SIDEBAR);
-        objective.setDisplayName(ChatColor.RED + "          UHC          ");
-
-        Score score = objective.getScore(ChatColor.WHITE + "Joueurs: " + ChatColor.GOLD + jp.getServer().getOnlinePlayers().size());
-        score.setScore(15);
-        scores.add(score);
-
-        score = objective.getScore(ChatColor.WHITE + "Equipes: " + ChatColor.GOLD + equipes.size());
-        score.setScore(14);
-        scores.add(score);
-    }*/
-
     private void updateScoreboard() {
         scoreboardTextBuffer.clear();
         scoreboardTextBuffer.add(ChatColor.YELLOW + "UHC " + ChatColor.DARK_GRAY + "| ");
         scoreboardTextBuffer.add(startText + ChatColor.DARK_GRAY + dateDuJour);
-        scoreboardTextBuffer.add(startText + ChatColor.GRAY + "équipes: " + ChatColor.GOLD + numberOfTeams + ChatColor.DARK_GRAY + " (" + ChatColor.GRAY + nombreJoueursTotal + ChatColor.DARK_GRAY + ")"); //ligne de l'équipe
+        scoreboardTextBuffer.add("");
+        if (gameStatus != GameStatus.SERVER_STARTED) {
+            scoreboardTextBuffer.add(startText + ChatColor.GOLD + "Démarrage: ");
+            scoreboardTextBuffer.add("");
+        }
+        scoreboardTextBuffer.add(startText + ChatColor.GRAY + "équipes: " + ChatColor.GOLD + getNumberOfTeamsAlive() + ChatColor.DARK_GRAY + " (" + ChatColor.GRAY + getNumberOfAlivePlayers() + ChatColor.DARK_GRAY + ")"); //ligne de l'équipe
 
         for (Equipe e: equipes) {
             e.updateScoreboard(scoreboardTextBuffer);
@@ -205,7 +263,7 @@ public class Main implements Listener, CommandExecutor {
 
     @EventHandler
     public void playerInteractEvent(PlayerInteractEvent e) {
-        if (!GameStarted && e.isBlockInHand()) {
+        if ((gameStatus == GameStatus.SERVER_STARTED || gameStatus == GameStatus.BEFORE_START) && e.isBlockInHand()) {
             teamGUI.updateTeams(equipes);
             teamGUI.openInventory(e.getPlayer());
         }
@@ -213,7 +271,7 @@ public class Main implements Listener, CommandExecutor {
 
     @EventHandler
     public void playerDropItem(PlayerDropItemEvent e) {
-        if (!GameStarted) {
+        if ((gameStatus == GameStatus.SERVER_STARTED || gameStatus == GameStatus.BEFORE_START)) {
             e.setCancelled(true);
         }
     }
@@ -298,14 +356,14 @@ public class Main implements Listener, CommandExecutor {
 
     @EventHandler
     public void BlockBreakEvent(BlockBreakEvent e) {
-        if (!GameStarted) {
+        if ((gameStatus == GameStatus.SERVER_STARTED || gameStatus == GameStatus.BEFORE_START)) {
             e.setCancelled(true);
         }
     }
 
     @EventHandler
     public void BlockPlaceEvent(BlockPlaceEvent e) {
-        if (!GameStarted) {
+        if ((gameStatus == GameStatus.SERVER_STARTED || gameStatus == GameStatus.BEFORE_START)) {
             e.setCancelled(true);
         }
     }
@@ -314,10 +372,20 @@ public class Main implements Listener, CommandExecutor {
         // Choose time zone in which you want to interpret your Date
         Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("Europe/Paris"));
         StringBuilder sb = new StringBuilder();
+        if (cal.get(Calendar.DAY_OF_MONTH) < 10) {
+            sb.append("0");
+        }
         sb.append(cal.get(Calendar.DAY_OF_MONTH));
+
         sb.append("/");
+
+        if (cal.get(Calendar.MONTH) < 10) {
+            sb.append("0");
+        }
         sb.append(cal.get(Calendar.MONTH));
+
         sb.append("/");
+
         sb.append(cal.get(Calendar.YEAR));
 
         return sb.toString();

@@ -11,6 +11,7 @@ import java.util.*;
 public class Equipe implements Listener {
     //private ArrayList<Joueur> joueurs = new ArrayList<>();
     private HashMap<UUID, Joueur> joueurs = new HashMap<>();
+
     private final String nomShort;
     private final String nomComplet;
     private final short id;
@@ -21,8 +22,10 @@ public class Equipe implements Listener {
     private ItemStack teamWool;
     private ScoreboardManager sm;
     private Scoreboard board;
-    private Objective objective;
-    private Team scoreboardTeam;
+    //private Objective objective;
+    //private Team scoreboardTeam;
+
+    private boolean teamIsAlive = true;
 
     public Equipe(String nomShort, String nomComplet, short id, short couleurEquipe, ScoreboardManager sm, Main m) {
         this.nomShort = nomShort;
@@ -30,21 +33,14 @@ public class Equipe implements Listener {
         this.id = id;
         this.couleurEquipe = couleurEquipe;
 
-        Main.numberOfTeams++;
-        Main.numberOfAliveTeam++;
+        //Main.numberOfTeams++;
+        //Main.numberOfAliveTeam++;
 
         main = m;
         this.teamWool = new ItemStack(Material.WOOL, 1, (short)couleurEquipe);
 
         this.sm = sm;
         this.board = sm.getNewScoreboard();
-
-
-
-        this.scoreboardTeam = this.board.registerNewTeam(this.nomShort);
-        this.scoreboardTeam.setPrefix(getChatColor() + "");
-        this.scoreboardTeam.setAllowFriendlyFire(true);
-        this.scoreboardTeam.setCanSeeFriendlyInvisibles(true);
     };
 
     public void updateScoreboard(final ArrayList<String> globalText) {
@@ -53,12 +49,16 @@ public class Equipe implements Listener {
 
         text.set(0, globalText.get(0) + this.getChatColor() + this.nomComplet);
 
-        //this.board.resetScores("objT" + nomShort);
-        if (this.objective != null)
+        for (Map.Entry<UUID, Joueur> j : joueurs.entrySet()) {
+            j.getValue().updateScoreboard(text);
+        }
+
+        /*if (this.objective != null)
             this.objective.unregister();
         this.objective = this.board.registerNewObjective("objT" + nomShort, "dummy");
 
-        this.objective.setDisplayName(globalText.get(0)); //limite: 32
+        this.objective.setDisplayName(text.get(0)); //limite: 32
+        text.remove(0);
 
         int counter = 15;
         for (String s : text) {
@@ -67,12 +67,7 @@ public class Equipe implements Listener {
             counter--;
         }
 
-        this.objective.setDisplaySlot(DisplaySlot.SIDEBAR);
-        /*Score scoreDate = this.objective.getScore(startText + dateDuJour);
-        scoreDate.setScore(15);
-
-        Score scoreNumJoueurs = this.objective.getScore(startText + ChatColor.GRAY + "équipes: " + ChatColor.GOLD + main.numberOfTeams + ChatColor.DARK_GRAY + "(" + ChatColor.GRAY + main.nombreJoueursTotal + ChatColor.DARK_GRAY + ")");
-        scoreNumJoueurs.setScore(14);*/
+        this.objective.setDisplaySlot(DisplaySlot.SIDEBAR);*/
     }
 
     public String getTeamName() {
@@ -98,14 +93,14 @@ public class Equipe implements Listener {
     public void addJoueur(Joueur j) {
         if (!this.joueurs.containsKey(j.getUUID())) {
             this.joueurs.put(j.getUUID(), j);
-            this.scoreboardTeam.addEntry(j.getPseudo());
+            //this.scoreboardTeam.addEntry(j.getPseudo());
             j.setEquipe(this);
         }
     }
 
     public void removeJoueur(Joueur j) {
         this.joueurs.remove(j.getUUID());
-        this.scoreboardTeam.removeEntry(j.getPseudo());
+        //this.scoreboardTeam.removeEntry(j.getPseudo());
     }
 
     public boolean containJoueur(Joueur j) {
@@ -116,5 +111,11 @@ public class Equipe implements Listener {
         return board;
     }
 
+    public boolean isTeamAlive() {
+        return teamIsAlive;
+    }
 
+    public String getNomShort() {
+        return nomShort;
+    }
 }
