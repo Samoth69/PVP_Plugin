@@ -1,4 +1,4 @@
-package samoth69.plugin_main;
+package samoth69.plugin;
 
 import org.bukkit.ChatColor;
 import org.bukkit.DyeColor;

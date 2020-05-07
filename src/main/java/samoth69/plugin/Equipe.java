@@ -1,4 +1,4 @@
-package samoth69.plugin_main;
+package samoth69.plugin;
 
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -52,22 +52,6 @@ public class Equipe implements Listener {
         for (Map.Entry<UUID, Joueur> j : joueurs.entrySet()) {
             j.getValue().updateScoreboard(text);
         }
-
-        /*if (this.objective != null)
-            this.objective.unregister();
-        this.objective = this.board.registerNewObjective("objT" + nomShort, "dummy");
-
-        this.objective.setDisplayName(text.get(0)); //limite: 32
-        text.remove(0);
-
-        int counter = 15;
-        for (String s : text) {
-            Score score = this.objective.getScore(s);
-            score.setScore(counter);
-            counter--;
-        }
-
-        this.objective.setDisplaySlot(DisplaySlot.SIDEBAR);*/
     }
 
     public String getTeamName() {

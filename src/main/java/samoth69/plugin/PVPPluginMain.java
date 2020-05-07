@@ -1,4 +1,4 @@
-package samoth69.plugin_main;
+package samoth69.plugin;
 
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;

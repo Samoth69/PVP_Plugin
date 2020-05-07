@@ -1,10 +1,9 @@
-package samoth69.plugin_main;
+package samoth69.plugin;
 
-import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
-import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scoreboard.*;
 
 import java.util.ArrayList;
@@ -15,6 +14,7 @@ public class Joueur implements Listener {
     private java.util.UUID UUID;
     private Equipe equipe;
     private String pseudo;
+    private JavaPlugin jp;
     private boolean alive = true;
     private int numberOfKills = 0;
     private int totalDamage = 0;
@@ -24,9 +24,9 @@ public class Joueur implements Listener {
     private Objective sidebarObjective;
     private Objective listObjective;
     private Objective belowNameObjective;
-    private Team scoreboardTeam;
 
-    Joueur(Player player, ScoreboardManager sm) {
+    Joueur(JavaPlugin jp, Player player, ScoreboardManager sm) {
+        this.jp = jp;
         this.player = player;
         this.UUID = player.getUniqueId();
         this.pseudo = player.getName();
@@ -34,17 +34,8 @@ public class Joueur implements Listener {
         this.board = sm.getNewScoreboard();
         this.listObjective = board.registerNewObjective("team", "dummy");
         this.listObjective.setDisplaySlot(DisplaySlot.PLAYER_LIST);
-        //this.belowNameObjective = board.registerNewObjective("belowName", "dummy");
-        //this.belowNameObjective.setDisplaySlot(DisplaySlot.BELOW_NAME);
-        //this.belowNameObjective.setDisplayName("test");
 
-        this.scoreboardTeam = this.board.registerNewTeam("team");
-        this.scoreboardTeam.setPrefix("§4PREFIX");
-        this.scoreboardTeam.addEntry(player.getName());
 
-        //this.scoreboardTeam.addEntry(player.getName());
-
-        //this.scoreboardTeam.addEntry(this.pseudo);
     }
 
     public Player getJoueur() {
@@ -73,8 +64,9 @@ public class Joueur implements Listener {
             //this.scoreboardTeam.setCanSeeFriendlyInvisibles(true);
 
             this.player.setDisplayName(this.equipe.getChatColor() + this.equipe.getNomShort() + " " + this.player.getName() + ChatColor.RESET);
-            this.player.setPlayerListName(this.player.getDisplayName());
-            this.scoreboardTeam.setPrefix(this.equipe.getChatColor() + this.equipe.getNomShort());
+            //this.aboveHeadPseudo = this.player.getDisplayName();
+            //this.player.setPlayerListName(this.player.getDisplayName());
+            //this.scoreboardTeam.setPrefix(this.equipe.getChatColor() + this.equipe.getNomShort());
 
             //this.listObjective.setDisplayName(equipe.getChatColor() + equipe.getNomShort() + player.getName());
 
@@ -90,6 +82,8 @@ public class Joueur implements Listener {
     }
 
     public String getPseudo() {return pseudo;}
+
+    public String getPseudoWithTeam() {return this.equipe.getNomShort() + " " + pseudo;}
 
     @Override
     public boolean equals(Object obj) {
@@ -134,4 +128,7 @@ public class Joueur implements Listener {
         this.player.setScoreboard(board);
         this.sidebarObjective.setDisplaySlot(DisplaySlot.SIDEBAR);
     }
+
+    public boolean isInTeam() {return this.equipe != null;}
+
 }

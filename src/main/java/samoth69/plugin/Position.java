@@ -1,4 +1,4 @@
-package samoth69.plugin_main;
+package samoth69.plugin;
 
 public class Position {
     private int x;

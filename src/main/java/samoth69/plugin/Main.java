@@ -1,6 +1,16 @@
-package samoth69.plugin_main;
+package samoth69.plugin;
 
+import com.comphenix.packetwrapper.WrapperPlayServerPlayerInfo;
+import com.comphenix.protocol.PacketType;
+import com.comphenix.protocol.ProtocolLibrary;
+import com.comphenix.protocol.ProtocolManager;
+import com.comphenix.protocol.events.PacketAdapter;
+import com.comphenix.protocol.events.PacketEvent;
+import com.comphenix.protocol.wrappers.EnumWrappers;
+import com.comphenix.protocol.wrappers.PlayerInfoData;
+import com.comphenix.protocol.wrappers.WrappedGameProfile;
 import com.connorlinfoot.titleapi.TitleAPI;
+import com.google.common.collect.Lists;
 import org.apache.commons.lang.StringUtils;
 import org.bukkit.*;
 import org.bukkit.block.Block;
@@ -34,7 +44,7 @@ public class Main implements Listener, CommandExecutor {
 
     private FileConfiguration config;
     private Position SpawnLocation;
-    private HashMap<UUID, Joueur> joueurs = new HashMap<>();
+    private static HashMap<UUID, Joueur> joueurs = new HashMap<>();
     private boolean SpawnStructureGenerated = false;
     //private boolean GameStarted = false;
     private GameStatus gameStatus = GameStatus.SERVER_STARTED;
@@ -48,13 +58,17 @@ public class Main implements Listener, CommandExecutor {
     private ScoreboardManager sm = Bukkit.getScoreboardManager();
     private Scoreboard sb = sm.getNewScoreboard();
     //private Objective objective = sb.registerNewObjective("PVPObjective", "dummy");
-    //private Score scoreNumJoueurs;
+    //private Team scoreboardTeam;
+
+
     private TeamGUI teamGUI = new TeamGUI();
     private ArrayList<Equipe> equipes = new ArrayList<>();
     private ArrayList<String> scoreboardTextBuffer = new ArrayList<>(); //la première ligne est le titre.
     public static final String dateDuJour = getDate();
     public static final String startText = ChatColor.DARK_GRAY + "≫ " + ChatColor.RESET;
     private BukkitRunnable startCounter;
+
+    private ProtocolManager protocolManager;
 
     Main(FileConfiguration config, JavaPlugin jp)
     {
@@ -77,6 +91,13 @@ public class Main implements Listener, CommandExecutor {
                 }
             }
         };
+
+        protocolManager = ProtocolLibrary.getProtocolManager();
+
+        protocolManager.addPacketListener(new PacketMgnt(jp, joueurs, PacketType.Play.Server.PLAYER_INFO));
+
+        //this.scoreboardTeam = this.sb.registerNewTeam("ha");
+        //this.scoreboardTeam.setPrefix("§4PREFIX");
     }
 
     // This method checks for incoming players and sends them a message
@@ -85,7 +106,7 @@ public class Main implements Listener, CommandExecutor {
         Player player = event.getPlayer();
 
         if (!joueurs.containsKey(player.getUniqueId())) {
-            joueurs.put(player.getUniqueId(), new Joueur(player, sm));
+            joueurs.put(player.getUniqueId(), new Joueur(jp, player, sm));
             if (config.getBoolean("TeleportOnConnect")) {
                 if (!SpawnStructureGenerated)
                 {
@@ -104,6 +125,7 @@ public class Main implements Listener, CommandExecutor {
             im.setDisplayName("Team");
             player.getInventory().setItem(4, is); //4: milieu de la hotbar
             getServer().getPluginManager().registerEvents(joueurs.get(player.getUniqueId()), jp);
+            //scoreboardTeam.addEntry(player.getName());
             updateScoreboard();
 
         } else {
@@ -121,6 +143,7 @@ public class Main implements Listener, CommandExecutor {
             Joueur j = joueurs.get(e.getPlayer().getUniqueId());
             j.removeTeam();
             joueurs.remove(e.getPlayer().getUniqueId());
+            //scoreboardTeam.removeEntry(j.getJoueur().getName());
             updateScoreboard();
         }
     }

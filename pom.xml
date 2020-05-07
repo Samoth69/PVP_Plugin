@@ -13,13 +13,12 @@
     </properties>
 
     <repositories>
-        <!--
         <repository>
-            <id>inventive-repo</id>
-            <url>https://repo.inventivetalent.org/content/groups/public/ </url>
+            <id>dmulloy2-repo</id>
+            <url>https://repo.dmulloy2.net/nexus/repository/public/</url>
         </repository>
-        -->
         <repository>
+
             <id>spigotmc-repo</id>
             <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
         </repository>
@@ -41,13 +40,16 @@
             <artifactId>TitleAPI</artifactId>
             <version>1.7.6</version>
         </dependency>
-        <!--
         <dependency>
-            <groupId>org.inventivetalent.nicknamer</groupId>
-            <artifactId>api</artifactId>
-            <version>2.3.6</version>
+            <groupId>com.comphenix.protocol</groupId>
+            <artifactId>ProtocolLib</artifactId>
+            <version>4.5.0</version>
         </dependency>
-        -->
+        <dependency>
+            <groupId>com.github.dmulloy2</groupId>
+            <artifactId>PacketWrapper</artifactId>
+            <version>master-SNAPSHOT</version>
+        </dependency>
     </dependencies>
     <!--
     <build>
