@@ -44,7 +44,8 @@ public class Main implements Listener, CommandExecutor {
 
     private FileConfiguration config;
     private Position SpawnLocation;
-    private static HashMap<UUID, Joueur> joueurs = new HashMap<>();
+    private HashMap<UUID, Joueur> joueurs = new HashMap<>();
+    //public NameChanger nameChanger;
     private boolean SpawnStructureGenerated = false;
     //private boolean GameStarted = false;
     private GameStatus gameStatus = GameStatus.SERVER_STARTED;
@@ -75,6 +76,7 @@ public class Main implements Listener, CommandExecutor {
         this.config = config;
         this.SpawnLocation = (Position)this.config.get("SpawnCoord");
         this.jp = jp;
+        //this.nameChanger = new NameChanger(jp);
 
         startCounter = new BukkitRunnable() {
             private Calendar cal = Calendar.getInstance(); //temps de démarage
@@ -92,9 +94,8 @@ public class Main implements Listener, CommandExecutor {
             }
         };
 
-        protocolManager = ProtocolLibrary.getProtocolManager();
-
-        protocolManager.addPacketListener(new PacketMgnt(jp, joueurs, PacketType.Play.Server.PLAYER_INFO));
+        //protocolManager = ProtocolLibrary.getProtocolManager();
+        //protocolManager.addPacketListener(new PacketMgnt(jp, joueurs, PacketType.Play.Server.PLAYER_INFO));
 
         //this.scoreboardTeam = this.sb.registerNewTeam("ha");
         //this.scoreboardTeam.setPrefix("§4PREFIX");
@@ -106,7 +107,7 @@ public class Main implements Listener, CommandExecutor {
         Player player = event.getPlayer();
 
         if (!joueurs.containsKey(player.getUniqueId())) {
-            joueurs.put(player.getUniqueId(), new Joueur(jp, player, sm));
+            joueurs.put(player.getUniqueId(), new Joueur(this, player, sm));
             if (config.getBoolean("TeleportOnConnect")) {
                 if (!SpawnStructureGenerated)
                 {
@@ -203,6 +204,10 @@ public class Main implements Listener, CommandExecutor {
             }
         }
         return true;
+    }
+
+    public JavaPlugin getJp() {
+        return this.jp;
     }
 
     //démarre la partie

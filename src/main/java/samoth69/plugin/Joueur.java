@@ -1,12 +1,24 @@
 package samoth69.plugin;
 
+import com.comphenix.packetwrapper.WrapperPlayServerPlayerInfo;
+import com.comphenix.protocol.PacketType;
+import com.comphenix.protocol.ProtocolLibrary;
+import com.comphenix.protocol.events.PacketAdapter;
+import com.comphenix.protocol.events.PacketEvent;
+import com.comphenix.protocol.wrappers.EnumWrappers;
+import com.comphenix.protocol.wrappers.PlayerInfoData;
+import com.comphenix.protocol.wrappers.WrappedChatComponent;
+import com.comphenix.protocol.wrappers.WrappedGameProfile;
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scoreboard.*;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.UUID;
 
 public class Joueur implements Listener {
@@ -15,6 +27,7 @@ public class Joueur implements Listener {
     private Equipe equipe;
     private String pseudo;
     private JavaPlugin jp;
+    private Main main;
     private boolean alive = true;
     private int numberOfKills = 0;
     private int totalDamage = 0;
@@ -25,8 +38,9 @@ public class Joueur implements Listener {
     private Objective listObjective;
     private Objective belowNameObjective;
 
-    Joueur(JavaPlugin jp, Player player, ScoreboardManager sm) {
-        this.jp = jp;
+    Joueur(Main main, Player player, ScoreboardManager sm) {
+        this.main = main;
+        this.jp = main.getJp();
         this.player = player;
         this.UUID = player.getUniqueId();
         this.pseudo = player.getName();
@@ -70,6 +84,63 @@ public class Joueur implements Listener {
 
             //this.listObjective.setDisplayName(equipe.getChatColor() + equipe.getNomShort() + player.getName());
 
+            //main.nameChanger.changeName(this.player, this.player.getDisplayName());
+
+            PlayerInfoData pid = new PlayerInfoData(WrappedGameProfile.fromPlayer(this.player), 1,
+                    EnumWrappers.NativeGameMode.SURVIVAL,
+                    WrappedChatComponent.fromText(this.getPseudoWithTeam()));
+            WrapperPlayServerPlayerInfo wpspi = new WrapperPlayServerPlayerInfo();
+            wpspi.setAction(EnumWrappers.PlayerInfoAction.REMOVE_PLAYER);
+            wpspi.setData(Collections.singletonList(pid));
+            for(Player p : Bukkit.getOnlinePlayers())
+            {
+                if(p.equals(this.player))
+                {
+                    continue;
+                }
+                p.hidePlayer(this.player);
+                wpspi.sendPacket(p);
+            }
+
+            ProtocolLibrary.getProtocolManager().addPacketListener(
+                    new PacketAdapter(main.getJp(), PacketType.Play.Server.PLAYER_INFO)
+                    {
+
+                        @Override
+                        public void onPacketSending(PacketEvent event)
+                        {
+
+                            if(event.getPacket().getPlayerInfoAction().read(0) != EnumWrappers.PlayerInfoAction.ADD_PLAYER)
+                            {
+                                return;
+                            }
+
+                            PlayerInfoData pid = event.getPacket().getPlayerInfoDataLists().read(0).get(0);
+
+                            if(!pid.getProfile().getUUID().equals(UUID)) // Here you can do something to ensure you're changing the name of the correct guy
+                            {
+                                return;
+                            }
+
+                            PlayerInfoData newPid = new PlayerInfoData(pid.getProfile().withName(getPseudoWithTeamAndColor()), pid.getPing(), pid.getGameMode(),
+                                    WrappedChatComponent.fromText(getPseudoWithTeamAndColor()));
+                            event.getPacket().getPlayerInfoDataLists().write(0, Collections.singletonList(newPid));
+
+                        }
+                    }
+            );
+
+            this.player.setPlayerListName(getPseudoWithTeamAndColor());
+
+            for(Player p : Bukkit.getOnlinePlayers())
+            {
+                if(p.equals(this.player))
+                {
+                    continue;
+                }
+                p.showPlayer(this.player);
+            }
+
             return true;
         } else {
             return false;
@@ -84,6 +155,8 @@ public class Joueur implements Listener {
     public String getPseudo() {return pseudo;}
 
     public String getPseudoWithTeam() {return this.equipe.getNomShort() + " " + pseudo;}
+
+    public String getPseudoWithTeamAndColor() {return this.equipe.getChatColor() + this.getPseudoWithTeam();}
 
     @Override
     public boolean equals(Object obj) {

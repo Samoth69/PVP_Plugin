@@ -62,6 +62,8 @@ public class PacketMgnt extends PacketAdapter implements Listener{
                 newNick = player.getName();
             }
 
+            System.out.println(newNick);
+
             WrappedGameProfile newProfile = profile.withName(newNick);
             newProfile.getProperties().putAll(profile.getProperties());
 
@@ -70,5 +72,6 @@ public class PacketMgnt extends PacketAdapter implements Listener{
         }
 
         wrapper.setData(newPlayerInfoDataList);
+        System.out.println("------");
     }
 }
