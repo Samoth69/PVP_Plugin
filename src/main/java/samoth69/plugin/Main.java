@@ -58,9 +58,7 @@ public class Main implements Listener, CommandExecutor {
     private JavaPlugin jp;
     private ScoreboardManager sm = Bukkit.getScoreboardManager();
     private Scoreboard sb = sm.getNewScoreboard();
-    //private Objective objective = sb.registerNewObjective("PVPObjective", "dummy");
-    //private Team scoreboardTeam;
-
+    private Objective healthObjective = sb.registerNewObjective("Health", "Health");
 
     private TeamGUI teamGUI = new TeamGUI();
     private ArrayList<Equipe> equipes = new ArrayList<>();
@@ -76,7 +74,7 @@ public class Main implements Listener, CommandExecutor {
         this.config = config;
         this.SpawnLocation = (Position)this.config.get("SpawnCoord");
         this.jp = jp;
-        //this.nameChanger = new NameChanger(jp);
+        this.healthObjective.setDisplaySlot(DisplaySlot.PLAYER_LIST);
 
         startCounter = new BukkitRunnable() {
             private Calendar cal = Calendar.getInstance(); //temps de démarage
