@@ -1,16 +1,6 @@
 package samoth69.plugin;
 
-import com.comphenix.packetwrapper.WrapperPlayServerPlayerInfo;
-import com.comphenix.protocol.PacketType;
-import com.comphenix.protocol.ProtocolLibrary;
-import com.comphenix.protocol.ProtocolManager;
-import com.comphenix.protocol.events.PacketAdapter;
-import com.comphenix.protocol.events.PacketEvent;
-import com.comphenix.protocol.wrappers.EnumWrappers;
-import com.comphenix.protocol.wrappers.PlayerInfoData;
-import com.comphenix.protocol.wrappers.WrappedGameProfile;
 import com.connorlinfoot.titleapi.TitleAPI;
-import com.google.common.collect.Lists;
 import org.apache.commons.lang.StringUtils;
 import org.bukkit.*;
 import org.bukkit.block.Block;
@@ -33,6 +23,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.scoreboard.*;
 
 import java.util.*;
@@ -45,13 +36,12 @@ public class Main implements Listener, CommandExecutor {
     private FileConfiguration config;
     private Position SpawnLocation;
     private HashMap<UUID, Joueur> joueurs = new HashMap<>();
-    //public NameChanger nameChanger;
     private boolean SpawnStructureGenerated = false;
-    //private boolean GameStarted = false;
     private GameStatus gameStatus = GameStatus.SERVER_STARTED;
-    private enum GameStatus {
+    public enum GameStatus {
         SERVER_STARTED, //status par défaut
-        BEFORE_START, //status avant que les joueurs sois larguer au sol
+        INIT_GAME, //status avant que les joueurs sois larguer au sol
+        TELEPORT_PLAYER,
         GAME_STARTED, //game en cours. le chrono démare lorsque le serveur passe dans ce mode
         GAME_FINISHED; //lorsque la partie est fini
     }
@@ -65,9 +55,11 @@ public class Main implements Listener, CommandExecutor {
     private ArrayList<String> scoreboardTextBuffer = new ArrayList<>(); //la première ligne est le titre.
     public static final String dateDuJour = getDate();
     public static final String startText = ChatColor.DARK_GRAY + "≫ " + ChatColor.RESET;
-    private BukkitRunnable startCounter;
 
-    private ProtocolManager protocolManager;
+    private BukkitRunnable startCounter;
+    private BukkitTask startProcedure, gameStarted;
+
+    public GameSettings gameSettings = new GameSettings(this);
 
     Main(FileConfiguration config, JavaPlugin jp)
     {
@@ -76,6 +68,7 @@ public class Main implements Listener, CommandExecutor {
         this.jp = jp;
         this.healthObjective.setDisplaySlot(DisplaySlot.PLAYER_LIST);
 
+
         startCounter = new BukkitRunnable() {
             private Calendar cal = Calendar.getInstance(); //temps de démarage
             private int counter = 5;
@@ -83,20 +76,38 @@ public class Main implements Listener, CommandExecutor {
             @Override
             public void run() {
                 for (Map.Entry<UUID, Joueur> j : joueurs.entrySet()) {
-                    TitleAPI.sendTitle(j.getValue().getJoueur(), 0, 20, 5, ChatColor.RED + String.valueOf(counter), "Démarrage");
+                    TitleAPI.sendTitle(j.getValue().getJoueur(), 0, 15, 5, ChatColor.RED + String.valueOf(counter), "Démarrage");
                     counter--;
                     if (counter <= 0) {
+                        //startProcedure.runTaskLater(jp, 1);
                         this.cancel();
+                        GameStatusChangedEvent sige = new GameStatusChangedEvent(GameStatus.TELEPORT_PLAYER);
+                        Bukkit.getPluginManager().callEvent(sige);;
                     }
                 }
             }
         };
+    }
 
-        //protocolManager = ProtocolLibrary.getProtocolManager();
-        //protocolManager.addPacketListener(new PacketMgnt(jp, joueurs, PacketType.Play.Server.PLAYER_INFO));
+    @EventHandler
+    public void gameStatusChanged(GameStatusChangedEvent e) {
+        switch (e.getGameStatus()) {
+            case SERVER_STARTED:
+                this.gameStatus = GameStatus.SERVER_STARTED;
+                break;
+            case INIT_GAME:
+                this.gameStatus = GameStatus.INIT_GAME;
+                this.startCounter.runTaskTimer(this.jp, 0, 20);
+                break;
+            case TELEPORT_PLAYER:
+                this.gameStatus = GameStatus.TELEPORT_PLAYER;
+                this.startProcedure = new StartProcedure(this).runTaskTimer(jp, 0, 20);
+                break;
+            case GAME_STARTED:
+                this.gameStatus = GameStatus.GAME_STARTED;
+                this.gameStarted = new GameRunningProcedure(this).runTaskTimer(jp, 0, 10);
 
-        //this.scoreboardTeam = this.sb.registerNewTeam("ha");
-        //this.scoreboardTeam.setPrefix("§4PREFIX");
+        }
     }
 
     // This method checks for incoming players and sends them a message
@@ -197,7 +208,11 @@ public class Main implements Listener, CommandExecutor {
                 }
             } else if(args[0].toLowerCase().equals("start")) {
                 startGame(sender);
-            } else {
+            } else if(args[0].toLowerCase().equals("setworldbordersize")) {
+                //TODO
+                //setWorldBorderSize(Integer.parseInt(args[1]));
+            }
+            else {
                 sender.sendMessage(ChatColor.RED + "Invalid argument (not reconized)");
             }
         }
@@ -208,6 +223,31 @@ public class Main implements Listener, CommandExecutor {
         return this.jp;
     }
 
+    public ArrayList<Equipe> getEquipes() {
+        return equipes;
+    }
+
+    public HashMap<UUID, Joueur> getJoueurs() {
+        return joueurs;
+    }
+
+    /*private void setWorldBorderSize(int size) {
+        this.wb.setSize(size);
+        this.updateScoreboard();
+    }*/
+
+    public int getNumberOfTeams() {
+        return equipes.size();
+    }
+
+    /*public int getWorldBorderSize() {
+        return (int)wb.getSize();
+    }*/
+
+    public World getWorld() {
+        return Bukkit.getWorlds().get(0);
+    }
+
     //démarre la partie
     private void startGame(CommandSender sender) {
         if (equipes.size() <= 0) {
@@ -215,11 +255,16 @@ public class Main implements Listener, CommandExecutor {
         } else {
             if (gameStatus == GameStatus.SERVER_STARTED) {
                 sender.sendMessage("Starting Game");
-                startCounter.runTaskTimer(this.jp, 0, 20);
+                updateGameStatus(GameStatus.INIT_GAME);
             } else {
                 sender.sendMessage(ChatColor.RED + "La partie est déjà lancé ou terminé");
             }
         }
+    }
+
+    private void updateGameStatus(GameStatus g) {
+        GameStatusChangedEvent gsc = new GameStatusChangedEvent(g);
+        Bukkit.getPluginManager().callEvent(gsc);
     }
 
     //renvoie le nombre de joueur dans la game (mort ou en vie)
@@ -255,20 +300,30 @@ public class Main implements Listener, CommandExecutor {
         return sb.toString();
     }
 
-    private void updateScoreboard() {
+    public void updateScoreboard(ArrayList<String> text) {
+        int index = 0;
+
         scoreboardTextBuffer.clear();
         scoreboardTextBuffer.add(ChatColor.YELLOW + "UHC " + ChatColor.DARK_GRAY + "| ");
         scoreboardTextBuffer.add(startText + ChatColor.DARK_GRAY + dateDuJour);
         scoreboardTextBuffer.add("");
-        if (gameStatus != GameStatus.SERVER_STARTED) {
-            scoreboardTextBuffer.add(startText + ChatColor.GOLD + "Démarrage: ");
+        if (text != null) {
+            scoreboardTextBuffer.addAll(text);
             scoreboardTextBuffer.add("");
         }
+        index = scoreboardTextBuffer.size();
         scoreboardTextBuffer.add(startText + ChatColor.GRAY + "équipes: " + ChatColor.GOLD + getNumberOfTeamsAlive() + ChatColor.DARK_GRAY + " (" + ChatColor.GRAY + getNumberOfAlivePlayers() + ChatColor.DARK_GRAY + ")"); //ligne de l'équipe
+        scoreboardTextBuffer.add("");
+        scoreboardTextBuffer.add(startText + ChatColor.GRAY + "Centre: ");
+        scoreboardTextBuffer.add(startText + ChatColor.GRAY + "Bordure: " + ChatColor.YELLOW + gameSettings.getTailleBordureTextFormatted());
 
         for (Equipe e: equipes) {
-            e.updateScoreboard(scoreboardTextBuffer);
+            e.updateScoreboard(scoreboardTextBuffer, index);
         }
+    }
+
+    public void updateScoreboard() {
+        updateScoreboard(null);
     }
 
     final String[] caractere = {"♥", "♦", "♣", "♠"};
@@ -289,7 +344,7 @@ public class Main implements Listener, CommandExecutor {
 
     @EventHandler
     public void playerInteractEvent(PlayerInteractEvent e) {
-        if ((gameStatus == GameStatus.SERVER_STARTED || gameStatus == GameStatus.BEFORE_START) && e.isBlockInHand()) {
+        if ((gameStatus == GameStatus.SERVER_STARTED || gameStatus == GameStatus.INIT_GAME || gameStatus == GameStatus.TELEPORT_PLAYER) && e.isBlockInHand()) {
             teamGUI.updateTeams(equipes);
             teamGUI.openInventory(e.getPlayer());
         }
@@ -297,7 +352,7 @@ public class Main implements Listener, CommandExecutor {
 
     @EventHandler
     public void playerDropItem(PlayerDropItemEvent e) {
-        if ((gameStatus == GameStatus.SERVER_STARTED || gameStatus == GameStatus.BEFORE_START)) {
+        if ((gameStatus == GameStatus.SERVER_STARTED || gameStatus == GameStatus.INIT_GAME || gameStatus == GameStatus.TELEPORT_PLAYER)) {
             e.setCancelled(true);
         }
     }
@@ -305,54 +360,67 @@ public class Main implements Listener, CommandExecutor {
     @EventHandler
     public void onInventoryClick(final InventoryClickEvent e)
     {
-        if (!(e.getInventory().getHolder() instanceof TeamGUI)) return;
+        if (gameStatus == GameStatus.SERVER_STARTED) {
+            if (!(e.getInventory().getHolder() instanceof TeamGUI)) return;
 
-        e.setCancelled(true);
+            e.setCancelled(true);
 
-        final ItemStack clickedItem = e.getCurrentItem();
+            final ItemStack clickedItem = e.getCurrentItem();
 
-        // verify current item is not null
-        if (clickedItem == null || clickedItem.getType() == Material.AIR) return;
+            // verify current item is not null
+            if (clickedItem == null || clickedItem.getType() == Material.AIR) return;
 
-        final Player p = (Player) e.getWhoClicked();
-        final Joueur j = joueurs.get(p.getUniqueId());
-        final Equipe eq = equipes.get(e.getRawSlot());
+            final Player p = (Player) e.getWhoClicked();
+            final Joueur j = joueurs.get(p.getUniqueId());
+            final Equipe eq = equipes.get(e.getRawSlot());
 
-        // Using slots click is a best option for your inventory click's
-        //p.sendMessage("You clicked at slot " + e.getRawSlot());
-        if (j.setEquipe(eq)) {
-            p.sendMessage("Vous avez rejoints " + j.getEquipe().getChatColor() + j.getEquipe().getTeamName());
-        } else {
-            p.sendMessage(ChatColor.RED + "Vous déjà dans cette équipe");
+            // Using slots click is a best option for your inventory click's
+            //p.sendMessage("You clicked at slot " + e.getRawSlot());
+            if (j.setEquipe(eq)) {
+                p.sendMessage("Vous avez rejoints " + j.getEquipe().getChatColor() + j.getEquipe().getTeamName());
+            } else {
+                p.sendMessage(ChatColor.RED + "Vous déjà dans cette équipe");
+            }
+
+            teamGUI.updateTeams(equipes);
+            updateScoreboard();
         }
-
-        teamGUI.updateTeams(equipes);
-        updateScoreboard();
     }
 
-    //génération auto du spawn pour la partie (sol en stained glass de couleur aléatoire avec des murs en stained glass pane de couleur aléatoire)
-    //center: position centrale de la plateforme.
-    private void genSpawnStructure(Position Center, short size) {
+    public void genSpawnStructure(Position center, short size) {
+        genSpawnStructure(center, size, false, Material.STAINED_GLASS, Material.STAINED_GLASS_PANE);
+    }
+
+    public void genSpawnStructure(Position center, short size, boolean destroy) {
+        genSpawnStructure(center, size, true, null, null);
+    }
+
+    public void genSpawnStructure(Position center, short size, boolean destroy, Material sol, Material mur) {
         jp.getLogger().info("Generating spawn structure");
+
+        if (destroy) {
+            sol = Material.AIR;
+            mur = Material.AIR;
+        }
 
         //SOL
         for (int x = -size; x < size; x++) {
             for (int z = -size; z < size; z++) {
-                setSpawnBlockAt(new Position(SpawnLocation.getX() + x, SpawnLocation.getY() - 1, SpawnLocation.getZ() + z), Material.STAINED_GLASS);
+                setSpawnBlockAt(new Position(center.getX() + x, center.getY() - 1, center.getZ() + z), sol);
             }
         }
 
         for (int x = -size; x < size; x++) {
             for (int y = 0; y < 3; y++) {
-                setSpawnBlockAt(new Position(SpawnLocation.getX() + x, SpawnLocation.getY() + y, SpawnLocation.getZ() - size), Material.STAINED_GLASS_PANE);
-                setSpawnBlockAt(new Position(SpawnLocation.getX() + x, SpawnLocation.getY() + y, SpawnLocation.getZ() + size - 1), Material.STAINED_GLASS_PANE);
+                setSpawnBlockAt(new Position(center.getX() + x, center.getY() + y, center.getZ() - size), mur);
+                setSpawnBlockAt(new Position(center.getX() + x, center.getY() + y, center.getZ() + size - 1), mur);
             }
         }
 
         for (int z = -size; z < size; z++) {
             for (int y = 0; y < 3; y++) {
-                setSpawnBlockAt(new Position(SpawnLocation.getX() - size, SpawnLocation.getY() + y, SpawnLocation.getZ() + z), Material.STAINED_GLASS_PANE);
-                setSpawnBlockAt(new Position(SpawnLocation.getX() + size - 1, SpawnLocation.getY() + y, SpawnLocation.getZ() + z), Material.STAINED_GLASS_PANE);
+                setSpawnBlockAt(new Position(center.getX() - size, center.getY() + y, center.getZ() + z), mur);
+                setSpawnBlockAt(new Position(center.getX() + size - 1, center.getY() + y, center.getZ() + z), mur);
             }
         }
     }
@@ -365,13 +433,14 @@ public class Main implements Listener, CommandExecutor {
         Location l = new Location(Bukkit.getWorlds().get(0), pos.getX(), pos.getY(), pos.getZ());
         Block b = l.getBlock();
         b.setType(mat);
-        b.setData((byte)new Random().nextInt(16)); //obsolète mais pas mieux :(
+        if (mat == Material.STAINED_GLASS || mat == Material.STAINED_GLASS_PANE)
+            b.setData((byte)new Random().nextInt(16)); //obsolète mais pas mieux :(
     }
 
     //Stores data for damage events
     @EventHandler
     public void EntityDamageEvent(EntityDamageEvent e) {
-        if (config.getBoolean("TeleportOnConnect"))
+        if ((gameStatus == GameStatus.SERVER_STARTED || gameStatus == GameStatus.INIT_GAME || gameStatus == GameStatus.TELEPORT_PLAYER))
         {
             if (e.getEntity() instanceof Player)
             {
@@ -382,14 +451,14 @@ public class Main implements Listener, CommandExecutor {
 
     @EventHandler
     public void BlockBreakEvent(BlockBreakEvent e) {
-        if ((gameStatus == GameStatus.SERVER_STARTED || gameStatus == GameStatus.BEFORE_START)) {
+        if ((gameStatus == GameStatus.SERVER_STARTED || gameStatus == GameStatus.INIT_GAME || gameStatus == GameStatus.TELEPORT_PLAYER)) {
             e.setCancelled(true);
         }
     }
 
     @EventHandler
     public void BlockPlaceEvent(BlockPlaceEvent e) {
-        if ((gameStatus == GameStatus.SERVER_STARTED || gameStatus == GameStatus.BEFORE_START)) {
+        if ((gameStatus == GameStatus.SERVER_STARTED || gameStatus == GameStatus.INIT_GAME || gameStatus == GameStatus.TELEPORT_PLAYER)) {
             e.setCancelled(true);
         }
     }
@@ -405,10 +474,10 @@ public class Main implements Listener, CommandExecutor {
 
         sb.append("/");
 
-        if (cal.get(Calendar.MONTH) < 10) {
+        if (cal.get(Calendar.MONTH) + 1 < 10) {
             sb.append("0");
         }
-        sb.append(cal.get(Calendar.MONTH));
+        sb.append(cal.get(Calendar.MONTH) + 1);
 
         sb.append("/");
 

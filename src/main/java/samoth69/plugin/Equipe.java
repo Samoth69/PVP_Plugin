@@ -43,14 +43,14 @@ public class Equipe implements Listener {
         this.board = sm.getNewScoreboard();
     };
 
-    public void updateScoreboard(final ArrayList<String> globalText) {
+    public void updateScoreboard(final ArrayList<String> globalText, int index) {
         ArrayList<String> text = new ArrayList<>();
         text.addAll(globalText);
 
         text.set(0, globalText.get(0) + this.getChatColor() + this.nomComplet);
 
         for (Map.Entry<UUID, Joueur> j : joueurs.entrySet()) {
-            j.getValue().updateScoreboard(text);
+            j.getValue().updateScoreboard(text, index);
         }
     }
 

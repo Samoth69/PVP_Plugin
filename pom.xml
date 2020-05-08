@@ -30,6 +30,12 @@
 
     <dependencies>
         <dependency>
+            <groupId>commons-lang</groupId>
+            <artifactId>commons-lang</artifactId>
+            <version>2.6</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
             <groupId>org.spigotmc</groupId>
             <artifactId>spigot-api</artifactId>
             <version>1.8.8-R0.1-SNAPSHOT</version>
@@ -39,19 +45,28 @@
             <groupId>com.github.ConnorLinfoot</groupId>
             <artifactId>TitleAPI</artifactId>
             <version>1.7.6</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.github.ConnorLinfoot</groupId>
+            <artifactId>ActionBarAPI</artifactId>
+            <version>5b2d642d3d</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.comphenix.protocol</groupId>
             <artifactId>ProtocolLib</artifactId>
             <version>4.5.0</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.github.dmulloy2</groupId>
             <artifactId>PacketWrapper</artifactId>
             <version>master-SNAPSHOT</version>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
-    <!--
+
     <build>
         <plugins>
             <plugin>
@@ -63,8 +78,20 @@
                     <target>1.8</target>
                 </configuration>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.2.3</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
-    -->
 
 </project>

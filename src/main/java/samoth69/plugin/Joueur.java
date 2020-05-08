@@ -14,7 +14,6 @@ import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scoreboard.*;
 
 import java.util.ArrayList;
@@ -48,8 +47,6 @@ public class Joueur implements Listener {
         this.board = sm.getNewScoreboard();
         this.listObjective = board.registerNewObjective("team", "dummy");
         this.listObjective.setDisplaySlot(DisplaySlot.PLAYER_LIST);
-
-
     }
 
     public Player getJoueur() {
@@ -73,18 +70,7 @@ public class Joueur implements Listener {
 
             this.player.setScoreboard(board);
 
-            //this.scoreboardTeam.setPrefix(equipe.getChatColor() + "");
-            //this.scoreboardTeam.setAllowFriendlyFire(true);
-            //this.scoreboardTeam.setCanSeeFriendlyInvisibles(true);
-
             this.player.setDisplayName(this.equipe.getChatColor() + this.equipe.getNomShort() + " " + this.player.getName() + ChatColor.RESET);
-            //this.aboveHeadPseudo = this.player.getDisplayName();
-            //this.player.setPlayerListName(this.player.getDisplayName());
-            //this.scoreboardTeam.setPrefix(this.equipe.getChatColor() + this.equipe.getNomShort());
-
-            //this.listObjective.setDisplayName(equipe.getChatColor() + equipe.getNomShort() + player.getName());
-
-            //main.nameChanger.changeName(this.player, this.player.getDisplayName());
 
             PlayerInfoData pid = new PlayerInfoData(WrappedGameProfile.fromPlayer(this.player), 1,
                     EnumWrappers.NativeGameMode.SURVIVAL,
@@ -176,7 +162,7 @@ public class Joueur implements Listener {
         this.alive = alive;
     }
 
-    public void updateScoreboard(final ArrayList<String> globalText) {
+    public void updateScoreboard(final ArrayList<String> globalText, int index) {
         ArrayList<String> text = new ArrayList<>();
         text.addAll(globalText);
 
@@ -187,9 +173,9 @@ public class Joueur implements Listener {
         this.sidebarObjective.setDisplayName(text.get(0)); //limite: 32
         text.remove(0);
 
-        text.add(2, Main.startText + ChatColor.GRAY + "Tués: " + ChatColor.RED + numberOfKills);
+        text.add(index, Main.startText + ChatColor.GRAY + "Tués: " + ChatColor.RED + numberOfKills);
 
-        text.add(player.getDisplayName());
+        //text.add(player.getDisplayName());
 
         int counter = 15;
         for (String s : text) {
