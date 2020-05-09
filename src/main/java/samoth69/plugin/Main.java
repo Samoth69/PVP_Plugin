@@ -163,11 +163,13 @@ public class Main implements Listener, CommandExecutor {
     @EventHandler
     public void onPlayerLeft(PlayerQuitEvent e) {
         if (gameStatus == GameStatus.SERVER_STARTED) {
-            Joueur j = joueurs.get(e.getPlayer().getUniqueId());
-            j.removeTeam();
-            joueurs.remove(e.getPlayer().getUniqueId());
-            //scoreboardTeam.removeEntry(j.getJoueur().getName());
-            updateScoreboard();
+            if (joueurs.containsKey(e.getPlayer().getUniqueId())) {
+                Joueur j = joueurs.get(e.getPlayer().getUniqueId());
+                j.removeTeam();
+                joueurs.remove(e.getPlayer().getUniqueId());
+                //scoreboardTeam.removeEntry(j.getJoueur().getName());
+                updateScoreboard();
+            }
         }
     }
 

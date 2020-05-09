@@ -115,8 +115,13 @@ public class Joueur implements Listener {
                                 return;
                             }
 
-                            PlayerInfoData newPid = new PlayerInfoData(pid.getProfile().withName(getPseudoWithTeamAndColor()), pid.getPing(), pid.getGameMode(),
-                                    WrappedChatComponent.fromText(getPseudoWithTeamAndColor()));
+                            String pseudo = getPseudoWithTeamAndColor();
+                            if (pseudo.length() > 16) {
+                                pseudo = pseudo.substring(0, 16);
+                            }
+
+                            PlayerInfoData newPid = new PlayerInfoData(pid.getProfile().withName(pseudo), pid.getPing(), pid.getGameMode(),
+                                    WrappedChatComponent.fromText(pseudo));
                             event.getPacket().getPlayerInfoDataLists().write(0, Collections.singletonList(newPid));
 
                         }
@@ -141,8 +146,10 @@ public class Joueur implements Listener {
     }
 
     public void removeTeam() {
-        this.equipe.removeJoueur(this);
-        this.equipe = null;
+        if (this.equipe != null) {
+            this.equipe.removeJoueur(this);
+            this.equipe = null;
+        }
     }
 
     public String getPseudo() {return pseudo;}
