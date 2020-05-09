@@ -5,5 +5,11 @@ load: POSTWORLD
 commands:
   pvp:
     description: pvp plugin command. type '/pvp help' for more info
-    usage: /<command>
+    usage: /pvp help
+  t:
+    description: utilise cette commande pour communiquer avec les taupes
+    usage: /t message
+  claim:
+    description: permet d'obtenir un kit spécial pour les taupes
+    usage: /claim
 depend: [TitleAPI, ActionBarAPI, ProtocolLib, PacketWrapper]

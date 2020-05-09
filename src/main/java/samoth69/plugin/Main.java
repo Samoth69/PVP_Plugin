@@ -8,12 +8,15 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
@@ -36,12 +39,13 @@ public class Main implements Listener, CommandExecutor {
     private FileConfiguration config;
     private Position SpawnLocation;
     private HashMap<UUID, Joueur> joueurs = new HashMap<>();
+    private HashMap<UUID, Joueur> taupeJoueurs = new HashMap<>();
     private boolean SpawnStructureGenerated = false;
     private GameStatus gameStatus = GameStatus.SERVER_STARTED;
     public enum GameStatus {
         SERVER_STARTED, //status par défaut
-        INIT_GAME, //status avant que les joueurs sois larguer au sol
-        TELEPORT_PLAYER,
+        INIT_GAME, //compte à rebour avant début téléportation
+        TELEPORT_PLAYER, //téléportation des joueurs en cours, le serveur peux laguer un peu pendant cette période
         GAME_STARTED, //game en cours. le chrono démare lorsque le serveur passe dans ce mode
         GAME_FINISHED; //lorsque la partie est fini
     }
@@ -60,6 +64,7 @@ public class Main implements Listener, CommandExecutor {
     private BukkitTask startProcedure, gameStarted;
 
     public GameSettings gameSettings = new GameSettings(this);
+    public GameRunningProcedure gameRunningProcedure =  new GameRunningProcedure(this);
 
     Main(FileConfiguration config, JavaPlugin jp)
     {
@@ -97,6 +102,14 @@ public class Main implements Listener, CommandExecutor {
                 break;
             case INIT_GAME:
                 this.gameStatus = GameStatus.INIT_GAME;
+                for (Equipe eq : this.equipes) {
+                    eq.tirerTaupe();
+                }
+                for (Map.Entry<UUID, Joueur> j : joueurs.entrySet()) {
+                    if (j.getValue().isTaupe()) {
+                        this.taupeJoueurs.put(j.getKey(), j.getValue());
+                    }
+                }
                 this.startCounter.runTaskTimer(this.jp, 0, 20);
                 break;
             case TELEPORT_PLAYER:
@@ -105,8 +118,8 @@ public class Main implements Listener, CommandExecutor {
                 break;
             case GAME_STARTED:
                 this.gameStatus = GameStatus.GAME_STARTED;
-                this.gameStarted = new GameRunningProcedure(this).runTaskTimer(jp, 0, 10);
-
+                this.gameStarted = this.gameRunningProcedure.runTaskTimer(jp, 0, 10);
+                this.gameRunningProcedure.startWatch();
         }
     }
 
@@ -142,7 +155,7 @@ public class Main implements Listener, CommandExecutor {
             if (!joueurs.containsKey(player.getUniqueId())) {
                 player.kickPlayer("Game already started !");
             } else {
-                //Bukkit.broadcastMessage("Reconnexion de " + player.getDisplayName());
+                this.joueurs.get(player.getUniqueId()).setPlayer(player);
             }
         }
     }
@@ -161,60 +174,183 @@ public class Main implements Listener, CommandExecutor {
     // This method is called, when somebody uses our command
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (args.length <= 0) {
-            sender.sendMessage("No Argument given, showing help");
-            sender.sendMessage(getCommandHelp());
-        } else {
-            jp.getLogger().info("dbg:");
-            for (String s: args)
-                jp.getLogger().info(s);
-            if (args[0].equals("help")) {
-                sender.sendMessage(getCommandHelp());
-            } else if(args[0].toLowerCase().equals("setteamnumber")) {
-                if (args[1] != null) {
-                    if (StringUtils.isNumeric(args[1])) {
-                        updateNumberOfTeams(Integer.parseInt(args[1]));
-                    } else {
-                        sender.sendMessage(ChatColor.RED + "This is not a valid number");
-                    }
-                } else {
-                    sender.sendMessage(ChatColor.RED + "Expected a number after setTeamNumber");
-                }
-            } else if(args[0].toLowerCase().equals("debug")) {
-                Logger l = jp.getLogger();
-                l.info("Teams:");
-                for (Equipe e : equipes) {
-                    l.info("Teamname: " + e.getTeamName());
-                    if (e.getJoueurs().size() > 0) {
-                        for (Joueur j : e.getJoueurs()) {
-                            l.info("TeamUser: " + j.getPseudo());
-                            l.info("TeamUserTeam:" + j.getEquipe().getTeamName());
+        Player p = (Player)sender;
+        switch (command.getName()) {
+            case "t":
+                if (this.taupeJoueurs.containsKey(p.getUniqueId()) && this.gameSettings.isEnableTaupe() && this.gameRunningProcedure.isTaupeActif()) {
+                    if (args.length > 0) {
+                        StringBuilder sb = new StringBuilder();
+                        for (String s : args) {
+                            sb.append(s);
+                            sb.append(" ");
+                        }
+                        for (Map.Entry<UUID, Joueur> t : this.taupeJoueurs.entrySet()) {
+                            if (t.getValue().isAlive()) {
+                                t.getValue().getJoueur().sendMessage(ChatColor.RED + "[" + p.getName() + "] " + sb.toString());
+                            }
                         }
                     } else {
-                        l.info("not player on this team");
+                        sender.sendMessage(ChatColor.RED + "Votre message est vide");
                     }
-                    l.info("---");
+                } else {
+                    sender.sendMessage(ChatColor.RED + "Tu n'est pas une taupe !");
                 }
-                l.info("----------------------");
-                l.info("Joueurs:");
-                for (Map.Entry<UUID, Joueur> j : joueurs.entrySet()) {
-                    l.info("pseudo: " + j.getValue().getPseudo());
-                    l.info("object UUID: " + j.getValue().getUUID());
-                    l.info("hash UUID: " + j.getKey());
-                    if (j.getValue().getEquipe() != null)
-                        l.info("team: " + j.getValue().getEquipe().getTeamName());
-                    else
-                        l.info("team: none");
+                return true;
+            case "claim":
+                if (this.taupeJoueurs.containsKey(p.getUniqueId()) && this.gameSettings.isEnableTaupe()) {
+                    Joueur j = this.taupeJoueurs.get(p.getUniqueId());
+                    if (!j.isKitClaimed()) {
+                        ItemStack dropItem = new ItemStack(Material.IRON_SWORD, 1);
+                        dropItem.addEnchantment(Enchantment.DAMAGE_ALL, 2);
+                        dropItem.addEnchantment(Enchantment.FIRE_ASPECT, 1);
+                        p.getWorld().dropItemNaturally(p.getLocation(), dropItem);
+                        j.setKitClaimed(true);
+                    }
+                } else {
+                    sender.sendMessage(ChatColor.RED + "Tu n'est pas une taupe !");
                 }
-            } else if(args[0].toLowerCase().equals("start")) {
-                startGame(sender);
-            } else if(args[0].toLowerCase().equals("setworldbordersize")) {
-                //TODO
-                //setWorldBorderSize(Integer.parseInt(args[1]));
-            }
-            else {
-                sender.sendMessage(ChatColor.RED + "Invalid argument (not reconized)");
-            }
+                return true;
+                //break;
+            case "pvp":
+                if (!sender.isOp()) {
+                    sender.sendMessage("You need to be op to use this command");
+                    return true;
+                }
+                if (args.length <= 0) {
+                    sender.sendMessage("No Argument given, showing help");
+                    sender.sendMessage(getCommandHelp());
+                } else {
+                    jp.getLogger().info("dbg:");
+                    for (String s : args)
+                        jp.getLogger().info(s);
+                    switch (args[0].toLowerCase()) {
+                        case "help":
+                            if (args[1].toLowerCase().equals("set")) {
+                                sender.sendMessage(getSetCommandHelp());
+                            } else {
+                                sender.sendMessage(getCommandHelp());
+                            }
+                            break;
+                        case "debug":
+                            Logger l = jp.getLogger();
+                            l.info("Teams:");
+                            for (Equipe e : equipes) {
+                                l.info("Teamname: " + e.getTeamName());
+                                if (e.getJoueurs().size() > 0) {
+                                    for (Joueur j : e.getJoueurs()) {
+                                        l.info("TeamUser: " + j.getPseudo());
+                                        l.info("TeamUserTeam:" + j.getEquipe().getTeamName());
+                                    }
+                                } else {
+                                    l.info("not player on this team");
+                                }
+                                l.info("---");
+                            }
+                            l.info("----------------------");
+                            l.info("Joueurs:");
+                            for (Map.Entry<UUID, Joueur> j : joueurs.entrySet()) {
+                                l.info("pseudo: " + j.getValue().getPseudo());
+                                l.info("object UUID: " + j.getValue().getUUID());
+                                l.info("hash UUID: " + j.getKey());
+                                if (j.getValue().getEquipe() != null)
+                                    l.info("team: " + j.getValue().getEquipe().getTeamName());
+                                else
+                                    l.info("team: none");
+                            }
+                            break;
+                        case "start":
+                            startGame(sender);
+                            break;
+                        case "set":
+                            if (args[1] != null) {
+                                switch (args[1].toLowerCase()) {
+                                    case "teamnumber":
+                                        if (StringUtils.isNumeric(args[2])) {
+                                            int num = Integer.parseInt(args[2]);
+                                            if (num > 45) {
+                                                sender.sendMessage(ChatColor.RED + "Number of team should be below or equal to 45");
+                                            } else {
+                                                updateNumberOfTeams(num);
+                                                sender.sendMessage(ChatColor.AQUA + "Number of team updated to " + ChatColor.GOLD + num);
+                                            }
+                                        } else {
+                                            sender.sendMessage(ChatColor.RED + "This is not a valid number");
+                                        }
+                                        break;
+                                    case "wbsize":
+                                        if (StringUtils.isNumeric(args[2])) {
+                                            this.gameSettings.setTailleBordure(Integer.parseInt(args[2]));
+                                            this.updateScoreboard();
+                                            sender.sendMessage(ChatColor.AQUA + "World border size updated to " + ChatColor.GOLD + args[2]);
+                                        } else {
+                                            sender.sendMessage(ChatColor.RED + "This is not a valid number");
+                                        }
+                                        break;
+                                    case "tpsdmg":
+                                        if (StringUtils.isNumeric(args[2])) {
+                                            this.gameSettings.setTpsInvincibilite(Integer.parseInt(args[2]));
+                                            sender.sendMessage(ChatColor.AQUA + "Time before player will take damage is now " + ChatColor.GOLD + args[2] + ChatColor.AQUA + " seconds");
+                                        } else {
+                                            sender.sendMessage(ChatColor.RED + "This is not a valid number");
+                                        }
+                                        break;
+                                    case "tpspvp":
+                                        if (StringUtils.isNumeric(args[2])) {
+                                            this.gameSettings.setTpsPVP(Integer.parseInt(args[2]));
+                                            sender.sendMessage(ChatColor.AQUA + "Time before PVP is enabled is now " + ChatColor.GOLD + args[2] + ChatColor.AQUA + " seconds");
+                                        } else {
+                                            sender.sendMessage(ChatColor.RED + "This is not a valid number");
+                                        }
+                                        break;
+                                    case "tpsborder":
+                                        if (StringUtils.isNumeric(args[2])) {
+                                            this.gameSettings.setTpsBordure(Integer.parseInt(args[2]));
+                                            sender.sendMessage(ChatColor.AQUA + "Time before world border will shrink is now " + ChatColor.GOLD + args[2] + ChatColor.AQUA + " seconds");
+                                        } else {
+                                            sender.sendMessage(ChatColor.RED + "This is not a valid number");
+                                        }
+                                        break;
+                                    case "muleenable":
+                                        this.gameSettings.setEnableTaupe(Boolean.parseBoolean(args[2]));
+                                        sender.sendMessage(ChatColor.AQUA + "Mule are now set to " + ChatColor.GOLD + args[2]);
+                                        break;
+                                    case "tpsmule":
+                                        if (StringUtils.isNumeric(args[2])) {
+                                            this.gameSettings.setTpsTaupe(Integer.parseInt(args[2]));
+                                            sender.sendMessage(ChatColor.AQUA + "Mule will now be revealed at " + ChatColor.GOLD + args[2] + ChatColor.AQUA + " seconds");
+                                        } else {
+                                            sender.sendMessage(ChatColor.RED + "This is not a valid number");
+                                        }
+                                        break;
+                                    default:
+                                        sender.sendMessage(ChatColor.RED + "Argument not reconized");
+                                        sender.sendMessage(this.getSetCommandHelp());
+                                        break;
+                                }
+                            } else {
+                                sender.sendMessage(ChatColor.RED + "missing argument");
+                                sender.sendMessage(this.getSetCommandHelp());
+                            }
+                            break;
+                        case "showconfig":
+                            StringBuilder sb = new StringBuilder();
+                            sb.append(ChatColor.AQUA + "-----------Current Game Config-----------" + ChatColor.RESET + "\n");
+                            sb.append(ChatColor.GOLD + "teamnumber " + ChatColor.YELLOW + this.getNumberOfTeams() + "\n");
+                            sb.append(ChatColor.GOLD + "wbsize     " + ChatColor.YELLOW + this.gameSettings.getTailleBordureTextFormatted() + "\n");
+                            sb.append(ChatColor.GOLD + "tpsdmg     " + ChatColor.YELLOW + GameRunningProcedure.formatSeconds(this.gameSettings.getTpsInvincibilite()) + "\n");
+                            sb.append(ChatColor.GOLD + "tpspvp     " + ChatColor.YELLOW + GameRunningProcedure.formatSeconds(this.gameSettings.getTpsPVP()) + "\n");
+                            sb.append(ChatColor.GOLD + "tpsborder  " + ChatColor.YELLOW + GameRunningProcedure.formatSeconds(this.gameSettings.getTpsBordure()) + "\n");
+                            sb.append(ChatColor.GOLD + "muleenable " + ChatColor.YELLOW + this.gameSettings.isEnableTaupe() + "\n");
+                            sb.append(ChatColor.GOLD + "tpsmule    " + ChatColor.YELLOW + GameRunningProcedure.formatSeconds(this.gameSettings.getTpsTaupe()) + "\n");
+                            sb.append(ChatColor.AQUA + "-----------------------------------------" + ChatColor.RESET + "\n");
+                            sender.sendMessage(sb.toString());
+                            break;
+                        default:
+                            sender.sendMessage(ChatColor.RED + "Invalid argument (not reconized)");
+                            break;
+                    }
+                }
+                break;
         }
         return true;
     }
@@ -231,18 +367,9 @@ public class Main implements Listener, CommandExecutor {
         return joueurs;
     }
 
-    /*private void setWorldBorderSize(int size) {
-        this.wb.setSize(size);
-        this.updateScoreboard();
-    }*/
-
     public int getNumberOfTeams() {
         return equipes.size();
     }
-
-    /*public int getWorldBorderSize() {
-        return (int)wb.getSize();
-    }*/
 
     public World getWorld() {
         return Bukkit.getWorlds().get(0);
@@ -295,8 +422,28 @@ public class Main implements Listener, CommandExecutor {
         StringBuilder sb = new StringBuilder();
         sb.append(ChatColor.AQUA + "-----------PVP Plugin Help:-----------" + ChatColor.RESET + "\n");
         sb.append(ChatColor.GOLD + "/pvp help" + ChatColor.RESET + ": Show this help\n");
-        sb.append(ChatColor.GOLD + "/pvp setTeamNumber [number of teams]" + ChatColor.RESET + ": set the number of teams\n");
+        sb.append(ChatColor.GOLD + "/pvp help set" + ChatColor.RESET + ": Show '/pvp set' command help\n");
+        sb.append(ChatColor.GOLD + "/pvp start" + ChatColor.RESET + ": start the game\n");
+        sb.append(ChatColor.GOLD + "/pvp showconfig" + ChatColor.RESET + ": Show game config\n");
+        sb.append(ChatColor.GOLD + "/pvp set [param] [optionnal arg 1]..." + ChatColor.RESET + ": Show this help\n");
+        sb.append(ChatColor.GOLD + "/pvp debug" + ChatColor.RESET + ": internal, for dev only\n");
         sb.append(ChatColor.AQUA + "--------------------------------------" + ChatColor.RESET  + "\n");
+        return sb.toString();
+    }
+
+    private String getSetCommandHelp() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(ChatColor.AQUA + "-----------Set Command Help:-----------" + ChatColor.RESET + "\n");
+        sb.append(ChatColor.AQUA + "pattern:" + ChatColor.GOLD+" /pvp set [param] [val]");
+        sb.append(ChatColor.GOLD + "param =\n");
+        sb.append(ChatColor.GOLD + "       teamnumber [number of teams]" + ChatColor.RESET + ": set the number of team\n");
+        sb.append(ChatColor.GOLD + "       wbsize [wb size in blocks]" + ChatColor.RESET + ": set the size of the world border\n");
+        sb.append(ChatColor.GOLD + "       tpsdmg [SECONDS]" + ChatColor.RESET + ": set time before player will take damage\n");
+        sb.append(ChatColor.GOLD + "       tpspvp [SECONDS]" + ChatColor.RESET + ": set time before player can hit each other\n");
+        sb.append(ChatColor.GOLD + "       tpsborder [SECONDS]" + ChatColor.RESET + ": set time before the world board will start to shrink\n");
+        sb.append(ChatColor.GOLD + "       muleenable  [true/false]" + ChatColor.RESET + ": enable / disable mule for this party\n");
+        sb.append(ChatColor.GOLD + "       tpsmule [SECONDS]" + ChatColor.RESET + ": set time before mule will be chosen at random\n");
+        sb.append(ChatColor.AQUA + "---------------------------------------" + ChatColor.RESET  + "\n");
         return sb.toString();
     }
 
@@ -306,10 +453,10 @@ public class Main implements Listener, CommandExecutor {
         scoreboardTextBuffer.clear();
         scoreboardTextBuffer.add(ChatColor.YELLOW + "UHC " + ChatColor.DARK_GRAY + "| ");
         scoreboardTextBuffer.add(startText + ChatColor.DARK_GRAY + dateDuJour);
-        scoreboardTextBuffer.add("");
+        scoreboardTextBuffer.add("a");
         if (text != null) {
             scoreboardTextBuffer.addAll(text);
-            scoreboardTextBuffer.add("");
+            scoreboardTextBuffer.add(" ");
         }
         index = scoreboardTextBuffer.size();
         scoreboardTextBuffer.add(startText + ChatColor.GRAY + "équipes: " + ChatColor.GOLD + getNumberOfTeamsAlive() + ChatColor.DARK_GRAY + " (" + ChatColor.GRAY + getNumberOfAlivePlayers() + ChatColor.DARK_GRAY + ")"); //ligne de l'équipe
@@ -340,6 +487,7 @@ public class Main implements Listener, CommandExecutor {
                 prefixCounter++;
             }
         }
+        this.updateScoreboard();
     }
 
     @EventHandler
@@ -354,6 +502,21 @@ public class Main implements Listener, CommandExecutor {
     public void playerDropItem(PlayerDropItemEvent e) {
         if ((gameStatus == GameStatus.SERVER_STARTED || gameStatus == GameStatus.INIT_GAME || gameStatus == GameStatus.TELEPORT_PLAYER)) {
             e.setCancelled(true);
+        }
+    }
+
+    @EventHandler
+    public void PlayerDeathEvent(PlayerDeathEvent e) {
+        if (gameStatus == GameStatus.GAME_STARTED) {
+            e.getEntity().setGameMode(GameMode.SPECTATOR);
+            this.joueurs.get(e.getEntity().getUniqueId()).setAlive(false);
+            this.joueurs.get(e.getEntity().getKiller().getUniqueId()).addKill();
+            if (getNumberOfTeamsAlive() <= 1) {
+                this.gameRunningProcedure.cancel();
+                for (Map.Entry<UUID, Joueur> j : joueurs.entrySet()) {
+                    TitleAPI.sendTitle(j.getValue().getJoueur(), 2, 30, 2, "Partie fini", "BRAVO à TOUS !");
+                }
+            }
         }
     }
 
@@ -440,10 +603,22 @@ public class Main implements Listener, CommandExecutor {
     //Stores data for damage events
     @EventHandler
     public void EntityDamageEvent(EntityDamageEvent e) {
-        if ((gameStatus == GameStatus.SERVER_STARTED || gameStatus == GameStatus.INIT_GAME || gameStatus == GameStatus.TELEPORT_PLAYER))
-        {
-            if (e.getEntity() instanceof Player)
-            {
+        if (e.getEntity() instanceof Player) {
+            if ((gameStatus == GameStatus.SERVER_STARTED || gameStatus == GameStatus.INIT_GAME || gameStatus == GameStatus.TELEPORT_PLAYER)) {
+                e.setCancelled(true);
+            } else if (gameStatus == GameStatus.GAME_STARTED) {
+                if (this.gameRunningProcedure.isInvinsibiliteActif()) {
+                    e.setCancelled(true);
+                }
+            }
+        }
+    }
+
+    @EventHandler
+    public void EntityDamageByEntityEvent(EntityDamageByEntityEvent e) {
+        if (e.getDamager() instanceof Player && e.getEntity() instanceof Player) {
+            if (!this.gameRunningProcedure.isPVPActif()) {
+                e.getDamager().sendMessage(ChatColor.RED + "" + ChatColor.BOLD + "Le pvp n'est pas encore actif !");
                 e.setCancelled(true);
             }
         }
@@ -484,5 +659,13 @@ public class Main implements Listener, CommandExecutor {
         sb.append(cal.get(Calendar.YEAR));
 
         return sb.toString();
+    }
+
+    public HashMap<UUID, Joueur> getTaupeJoueurs() {
+        return this.taupeJoueurs;
+    }
+
+    public WorldBorder getWorldBorder() {
+        return Bukkit.getWorlds().get(0).getWorldBorder();
     }
 }

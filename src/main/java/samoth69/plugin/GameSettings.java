@@ -7,14 +7,16 @@ public class GameSettings {
 
     private Main main;
 
-    private int tpsInvincibilite = 2;
-    private int tpsPVP = 10;
+    //toutes les valeurs de temps sont stockés en secondes pour réduire le nombre de calcul
 
-    private int tpsBordure = 60;
+    private int tpsInvincibilite = 2 * 60;
+    private int tpsPVP = 10 * 60;
+
+    private int tpsBordure = 3600;
     private int tailleBordure = 500; //ATTENTION: CETTE VALEUR DOIS ÊTRE DOUBLé QUAND MISE DANS Main.wb.setSize()
 
     private boolean enableTaupe = false;
-    private int tpsTaupe = 20;
+    private int tpsTaupe = 20 * 60;
 
     private WorldBorder wb = Bukkit.getWorlds().get(0).getWorldBorder();
 
@@ -58,6 +60,7 @@ public class GameSettings {
 
     public void setTailleBordure(int tailleBordure) {
         this.tailleBordure = tailleBordure;
+        this.wb.setSize(tailleBordure);
     }
 
     public String getTailleBordureTextFormatted() {

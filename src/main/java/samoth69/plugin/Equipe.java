@@ -2,6 +2,7 @@ package samoth69.plugin;
 
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scoreboard.*;
@@ -25,6 +26,7 @@ public class Equipe implements Listener {
     //private Objective objective;
     //private Team scoreboardTeam;
 
+    private int numberOfPlayerAlive = 0;
     private boolean teamIsAlive = true;
 
     public Equipe(String nomShort, String nomComplet, short id, short couleurEquipe, ScoreboardManager sm, Main m) {
@@ -33,7 +35,7 @@ public class Equipe implements Listener {
         this.id = id;
         this.couleurEquipe = couleurEquipe;
 
-        //Main.numberOfTeams++;
+        //Main.numberOfTeams++;.
         //Main.numberOfAliveTeam++;
 
         main = m;
@@ -79,11 +81,13 @@ public class Equipe implements Listener {
             this.joueurs.put(j.getUUID(), j);
             //this.scoreboardTeam.addEntry(j.getPseudo());
             j.setEquipe(this);
+            numberOfPlayerAlive++;
         }
     }
 
     public void removeJoueur(Joueur j) {
         this.joueurs.remove(j.getUUID());
+        numberOfPlayerAlive--;
         //this.scoreboardTeam.removeEntry(j.getPseudo());
     }
 
@@ -101,5 +105,21 @@ public class Equipe implements Listener {
 
     public String getNomShort() {
         return nomShort;
+    }
+
+    //dois être appellé que par l'objet Joueur
+    public void notifyPlayerDead() {
+        numberOfPlayerAlive--;
+        if (numberOfPlayerAlive <= 0) {
+            teamIsAlive = false;
+        }
+    }
+
+    public void tirerTaupe() {
+        ArrayList<Joueur> al = new ArrayList<>();
+        for (Map.Entry<UUID, Joueur> j : joueurs.entrySet()) {
+            al.add(j.getValue());
+        }
+        al.get(new Random().nextInt(al.size() - 1)).setTaupe(true);
     }
 }

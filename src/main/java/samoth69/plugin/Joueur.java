@@ -37,6 +37,9 @@ public class Joueur implements Listener {
     private Objective listObjective;
     private Objective belowNameObjective;
 
+    private boolean isTaupe = false;
+    private boolean kitClaimed = false;
+
     Joueur(Main main, Player player, ScoreboardManager sm) {
         this.main = main;
         this.jp = main.getJp();
@@ -58,6 +61,10 @@ public class Joueur implements Listener {
     }
 
     public Equipe getEquipe() {return equipe;}
+
+    public void addKill() {
+        this.numberOfKills++;
+    }
 
     public boolean setEquipe(Equipe equipe) {
         if (this.equipe == null || !equipe.containJoueur(this))
@@ -160,6 +167,7 @@ public class Joueur implements Listener {
 
     public void setAlive(boolean alive) {
         this.alive = alive;
+        this.equipe.notifyPlayerDead();
     }
 
     public void updateScoreboard(final ArrayList<String> globalText, int index) {
@@ -189,5 +197,29 @@ public class Joueur implements Listener {
     }
 
     public boolean isInTeam() {return this.equipe != null;}
+
+    public boolean isTaupe() {
+        return isTaupe;
+    }
+
+    public void setTaupe(boolean taupe) {
+        isTaupe = taupe;
+    }
+
+    public boolean isKitClaimed() {
+        return kitClaimed;
+    }
+
+    public void setKitClaimed(boolean kitClaimed) {
+        this.kitClaimed = kitClaimed;
+    }
+
+    public void setPlayer(Player player) {
+        this.player = player;
+    }
+
+    public int getDistanceFromMid() {
+        return (int)Math.sqrt(Math.pow(this.player.getLocation().getBlockX(), 2) + Math.pow(this.player.getLocation().getBlockZ(), 2));
+    }
 
 }

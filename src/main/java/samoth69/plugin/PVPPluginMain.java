@@ -22,6 +22,8 @@ public class PVPPluginMain extends JavaPlugin {
         listener = new Main(config, this);
         getServer().getPluginManager().registerEvents(listener, this);
         this.getCommand("pvp").setExecutor(listener);
+        this.getCommand("t").setExecutor(listener);
+        this.getCommand("claim").setExecutor(listener);
     }
 
     @Override
