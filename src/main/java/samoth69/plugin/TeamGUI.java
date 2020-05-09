@@ -48,7 +48,7 @@ public class TeamGUI implements InventoryHolder, Listener {
     }
 
     public void updateTeams(List<Equipe> equipes) {
-        //inv.clear();
+        inv.clear();
         int index = 0;
         if (equipes.size() != 0) {
             for (Equipe e : equipes) {

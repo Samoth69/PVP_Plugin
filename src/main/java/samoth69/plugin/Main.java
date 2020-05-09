@@ -480,9 +480,9 @@ public class Main implements Listener, CommandExecutor {
         short color = 0;
         short prefixCounter = 0;
         for (int i = 0; i < numberOfTeams; i++) {
-            equipes.add(new Equipe(caractere[prefixCounter], "Equipe " + caractere[prefixCounter], (short)i, color, sm, this));
+            equipes.add(new Equipe(caractere[prefixCounter], "Equipe " + caractere[prefixCounter], (short)Utils.getIntFromChatColor(Utils.getChatColorFromInt(prefixCounter)), color, sm, this));
             color++;
-            if (color >= 16) { //on exclue la couleur noir car pas super lisible. si on dépasse les 16 équipes, on repart à 0
+            if (color >= 6) { //on exclue la couleur noir car pas super lisible. si on dépasse les 16 équipes, on repart à 0
                 color = 0;
                 prefixCounter++;
             }
