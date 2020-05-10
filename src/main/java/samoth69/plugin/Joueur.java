@@ -14,10 +14,12 @@ import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scoreboard.*;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.UUID;
 
 public class Joueur implements Listener {
@@ -29,7 +31,7 @@ public class Joueur implements Listener {
     private Main main;
     private boolean alive = true;
     private int numberOfKills = 0;
-    private int totalDamage = 0;
+    private double totalDamage = 0;
 
     private ScoreboardManager sm;
     private Scoreboard board;
@@ -65,6 +67,8 @@ public class Joueur implements Listener {
     public void addKill() {
         this.numberOfKills++;
     }
+
+    public int getNumberOfKills() {return this.numberOfKills;}
 
     public boolean setEquipe(Equipe equipe) {
         if (this.equipe == null || !equipe.containJoueur(this))
@@ -240,6 +244,33 @@ public class Joueur implements Listener {
 
     public int getDistanceFromMid() {
         return (int)Math.sqrt(Math.pow(this.player.getLocation().getBlockX(), 2) + Math.pow(this.player.getLocation().getBlockZ(), 2));
+    }
+
+    public double getTotalDamage() {
+        return totalDamage;
+    }
+
+    public void addTotalDamage(double dmg) {
+        Bukkit.getLogger().info(this.pseudo + " dmg " + dmg);
+        this.totalDamage += dmg;
+    }
+
+    public static Comparator<Joueur> compTopDmg() {
+        return new Comparator<Joueur>() {
+            @Override
+            public int compare(Joueur j1, Joueur j2) {
+                return Double.compare(j2.getTotalDamage(), j1.getTotalDamage());
+            }
+        };
+    }
+
+    public static Comparator<Joueur> compKillCount() {
+        return new Comparator<Joueur>() {
+            @Override
+            public int compare(Joueur j1, Joueur j2) {
+                return Double.compare(j2.getNumberOfKills(), j1.getNumberOfKills());
+            }
+        };
     }
 
 }

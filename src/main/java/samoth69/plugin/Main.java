@@ -632,6 +632,9 @@ public class Main implements Listener, CommandExecutor {
             if (!this.gameRunningProcedure.isPVPActif()) {
                 e.getDamager().sendMessage(ChatColor.RED + "" + ChatColor.BOLD + "Le pvp n'est pas encore actif !");
                 e.setCancelled(true);
+            } else {
+                Joueur j = this.joueurs.get(e.getDamager().getUniqueId());
+                j.addTotalDamage(e.getFinalDamage());
             }
         }
     }

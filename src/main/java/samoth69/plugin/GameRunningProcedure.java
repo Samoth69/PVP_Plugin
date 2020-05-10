@@ -6,9 +6,7 @@ import org.bukkit.ChatColor;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 public class GameRunningProcedure extends BukkitRunnable {
     private Main main;
@@ -17,6 +15,7 @@ public class GameRunningProcedure extends BukkitRunnable {
 
     private boolean taupeRevealed = false;
     private boolean borderIsReducing = false;
+    private boolean gameEnded = false;
 
     public GameRunningProcedure(Main main) {
         this.main = main;
@@ -70,6 +69,54 @@ public class GameRunningProcedure extends BukkitRunnable {
             Bukkit.broadcastMessage(ChatColor.RED + "La bordure commence à ce réduire");
             this.main.getWorldBorder().setSize(200, 1800);
             borderIsReducing = true;
+        }
+
+        //si cette condition est validé, c'est la fin de la partie
+        if (this.main.getNumberOfTeamsAlive() <= 1 && !this.gameEnded) {
+            //-------------------------------------------TOP DAMAGE-----------------------------------------------------
+            ArrayList<Joueur> topDmg = new ArrayList<>(main.getJoueurs().values());
+            topDmg.sort(Joueur.compTopDmg());
+
+            Bukkit.getLogger().info("TOP DAMAGE");
+            for (Joueur j : topDmg) {
+                Bukkit.getLogger().info(j.getPseudo() + ":" + j.getTotalDamage());
+            }
+
+            StringBuilder sb = new StringBuilder();
+            sb.append(ChatColor.DARK_BLUE + "" + ChatColor.BOLD + "------------TOP DAMAGE:------------\n");
+            for (int i = 0; i < 6 && i < topDmg.size(); i++) {
+                sb.append(ChatColor.GRAY + "N°" +
+                        ChatColor.GOLD + (i + 1) +
+                        ChatColor.DARK_GRAY + ": " + topDmg.get(i).getPseudoWithTeamAndColor() +
+                        ChatColor.DARK_GRAY + " (" +
+                        ChatColor.GRAY + topDmg.get(i).getTotalDamage() +
+                        ChatColor.DARK_GRAY + ")\n");
+            }
+            Bukkit.broadcastMessage(sb.toString());
+
+            //-------------------------------------------TOP KILLS-----------------------------------------------------
+            ArrayList<Joueur> topKill = new ArrayList<>(main.getJoueurs().values());
+            topKill.sort(Joueur.compKillCount());
+
+            Bukkit.getLogger().info("TOP KILL");
+            for (Joueur j : topKill) {
+                Bukkit.getLogger().info(j.getPseudo() + ":" + j.getNumberOfKills());
+            }
+
+            sb = new StringBuilder();
+
+            sb.append(ChatColor.DARK_BLUE + "" + ChatColor.BOLD + "------------TOP KILLS:------------\n");
+            for (int i = 0; i < 6 && i < topKill.size(); i++) {
+                sb.append(ChatColor.GRAY + "N°" +
+                        ChatColor.GOLD + (i + 1) +
+                        ChatColor.DARK_GRAY + ": " + topDmg.get(i).getPseudoWithTeamAndColor() +
+                        ChatColor.DARK_GRAY + " (" +
+                        ChatColor.GRAY + topDmg.get(i).getNumberOfKills() +
+                        ChatColor.DARK_GRAY + ")\n");
+            }
+            Bukkit.broadcastMessage(sb.toString());
+
+            this.main.gameStatusChanged(new GameStatusChangedEvent(Main.GameStatus.GAME_FINISHED));
         }
     }
 
