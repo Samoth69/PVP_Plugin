@@ -28,7 +28,6 @@ public class GameRunningProcedure extends BukkitRunnable {
 
     @Override
     public void run() {
-        //plus d'info ici: https://commons.apache.org/proper/commons-lang/javadocs/api-2.6/src-html/org/apache/commons/lang/time/FastDateFormat.html#line.534
         //FastDateFormat fdfChrono = FastDateFormat.getInstance("HH:mm:ss");
         long stopWatchSecondes = stopWatch.getTime() / 1000;
         //long difInvisibilite = getDifInvinsibilite();
@@ -52,7 +51,7 @@ public class GameRunningProcedure extends BukkitRunnable {
 
         this.main.updateScoreboard(text);
 
-        if (difTaupe < 0 && !taupeRevealed) {
+        if (this.main.gameSettings.isEnableTaupe() && difTaupe < 0 && !taupeRevealed) {
             for (Map.Entry<UUID, Joueur> j : this.main.getTaupeJoueurs().entrySet()) {
                 StringBuilder sb = new StringBuilder();
                 sb.append(ChatColor.GOLD + "-----------------------------------------------------\n");
@@ -69,7 +68,7 @@ public class GameRunningProcedure extends BukkitRunnable {
 
         if (difBordure < 0 && !borderIsReducing) {
             Bukkit.broadcastMessage(ChatColor.RED + "La bordure commence à ce réduire");
-            this.main.getWorldBorder().setSize(100, 1800);
+            this.main.getWorldBorder().setSize(200, 1800);
             borderIsReducing = true;
         }
     }

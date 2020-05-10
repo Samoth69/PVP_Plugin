@@ -16,6 +16,7 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.FoodLevelChangeEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
@@ -99,6 +100,10 @@ public class Main implements Listener, CommandExecutor {
         switch (e.getGameStatus()) {
             case SERVER_STARTED:
                 this.gameStatus = GameStatus.SERVER_STARTED;
+                Bukkit.getWorlds().get(0).setGameRuleValue("doDaylightCycle", "false");
+                //Bukkit.getWorlds().get(1).setGameRuleValue("doDaylightCycle", "false");
+                //Bukkit.getWorlds().get(2).setGameRuleValue("doDaylightCycle", "false");
+                Bukkit.getWorlds().get(0).setFullTime(0);
                 break;
             case INIT_GAME:
                 this.gameStatus = GameStatus.INIT_GAME;
@@ -114,11 +119,15 @@ public class Main implements Listener, CommandExecutor {
                 break;
             case TELEPORT_PLAYER:
                 this.gameStatus = GameStatus.TELEPORT_PLAYER;
-                this.startProcedure = new StartProcedure(this).runTaskTimer(jp, 0, 20);
+                if (this.startProcedure != null)
+                    this.startProcedure = new StartProcedure(this).runTaskTimer(jp, 0, 20);
                 break;
             case GAME_STARTED:
                 this.gameStatus = GameStatus.GAME_STARTED;
                 this.gameStarted = this.gameRunningProcedure.runTaskTimer(jp, 0, 10);
+                Bukkit.getWorlds().get(0).setGameRuleValue("naturalRegeneration", "false");
+                Bukkit.getWorlds().get(1).setGameRuleValue("naturalRegeneration", "false");
+                Bukkit.getWorlds().get(2).setGameRuleValue("naturalRegeneration", "false");
                 this.gameRunningProcedure.startWatch();
         }
     }
@@ -561,11 +570,12 @@ public class Main implements Listener, CommandExecutor {
     }
 
     public void genSpawnStructure(Position center, short size, boolean destroy, Material sol, Material mur) {
-        jp.getLogger().info("Generating spawn structure");
-
         if (destroy) {
             sol = Material.AIR;
             mur = Material.AIR;
+            jp.getLogger().info("Destroying spawn structure");
+        } else {
+            jp.getLogger().info("Generating spawn structure");
         }
 
         //SOL
@@ -635,6 +645,13 @@ public class Main implements Listener, CommandExecutor {
 
     @EventHandler
     public void BlockPlaceEvent(BlockPlaceEvent e) {
+        if ((gameStatus == GameStatus.SERVER_STARTED || gameStatus == GameStatus.INIT_GAME || gameStatus == GameStatus.TELEPORT_PLAYER)) {
+            e.setCancelled(true);
+        }
+    }
+
+    @EventHandler
+    public void FoodLevelChangeEvent(FoodLevelChangeEvent e) {
         if ((gameStatus == GameStatus.SERVER_STARTED || gameStatus == GameStatus.INIT_GAME || gameStatus == GameStatus.TELEPORT_PLAYER)) {
             e.setCancelled(true);
         }

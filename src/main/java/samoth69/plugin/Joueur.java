@@ -116,14 +116,13 @@ public class Joueur implements Listener {
                             }
 
                             String pseudo = getPseudoWithTeamAndColor();
-                            if (pseudo.length() > 16) {
+                            if (pseudo.length() >= 16) {
                                 pseudo = pseudo.substring(0, 16);
                             }
 
                             PlayerInfoData newPid = new PlayerInfoData(pid.getProfile().withName(pseudo), pid.getPing(), pid.getGameMode(),
                                     WrappedChatComponent.fromText(pseudo));
                             event.getPacket().getPlayerInfoDataLists().write(0, Collections.singletonList(newPid));
-
                         }
                     }
             );
@@ -154,9 +153,23 @@ public class Joueur implements Listener {
 
     public String getPseudo() {return pseudo;}
 
-    public String getPseudoWithTeam() {return this.equipe.getNomShort() + " " + pseudo;}
+    public String getPseudoWithTeam() {
+        if (this.equipe != null) {
+            return this.equipe.getNomShort() + " " + pseudo;
+        } else {
+            return pseudo;
+        }
 
-    public String getPseudoWithTeamAndColor() {return this.equipe.getChatColor() + this.getPseudoWithTeam();}
+    }
+
+    public String getPseudoWithTeamAndColor() {
+        if (this.equipe != null) {
+            return this.equipe.getChatColor() + this.getPseudoWithTeam();
+        } else {
+            return this.getPseudoWithTeam();
+        }
+
+    }
 
     @Override
     public boolean equals(Object obj) {
