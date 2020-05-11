@@ -1,7 +1,6 @@
 package samoth69.plugin;
 
 import com.connorlinfoot.titleapi.TitleAPI;
-import com.sun.org.apache.xpath.internal.operations.Equals;
 import org.apache.commons.lang.StringUtils;
 import org.bukkit.*;
 import org.bukkit.block.Block;
@@ -53,9 +52,9 @@ public class Main implements Listener, CommandExecutor {
     }
     private JavaPlugin jp;
     private ScoreboardManager sm = Bukkit.getScoreboardManager();
-    private Scoreboard sb = sm.getNewScoreboard();
-    private Objective listObjective;
-    private Objective belowNameObjective;
+//    private Scoreboard sb = sm.getNewScoreboard();
+//    private Objective listObjective;
+//    private Objective belowNameObjective;
 
     private TeamGUI teamGUI = new TeamGUI();
     private ArrayList<Equipe> equipes = new ArrayList<>();
@@ -75,10 +74,10 @@ public class Main implements Listener, CommandExecutor {
         this.SpawnLocation = (Position)this.config.get("SpawnCoord");
         this.jp = jp;
 
-        this.listObjective = sb.registerNewObjective("health", "health");
-        this.listObjective.setDisplaySlot(DisplaySlot.PLAYER_LIST);
-        this.belowNameObjective = sb.registerNewObjective("blhealth", "health");
-        this.belowNameObjective.setDisplaySlot(DisplaySlot.BELOW_NAME);
+//        this.listObjective = sb.registerNewObjective("health", "health");
+//        this.listObjective.setDisplaySlot(DisplaySlot.PLAYER_LIST);
+//        this.belowNameObjective = sb.registerNewObjective("blhealth", "health");
+//        this.belowNameObjective.setDisplaySlot(DisplaySlot.BELOW_NAME);
 
         startCounter = new BukkitRunnable() {
             private Calendar cal = Calendar.getInstance(); //temps de démarage
@@ -216,7 +215,6 @@ public class Main implements Listener, CommandExecutor {
             getServer().getPluginManager().registerEvents(joueurs.get(player.getUniqueId()), jp);
             //scoreboardTeam.addEntry(player.getName());
             updateScoreboard();
-
         } else {
             if (!joueurs.containsKey(player.getUniqueId())) {
                 player.kickPlayer("Game already started !");
@@ -531,6 +529,7 @@ public class Main implements Listener, CommandExecutor {
         scoreboardTextBuffer.add(" ");
         if (text != null) {
             scoreboardTextBuffer.addAll(text);
+            scoreboardTextBuffer.add(2, " ");
             scoreboardTextBuffer.add(" ");
         }
         index = scoreboardTextBuffer.size();

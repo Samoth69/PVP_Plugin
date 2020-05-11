@@ -11,11 +11,13 @@ import com.comphenix.protocol.wrappers.WrappedChatComponent;
 import com.comphenix.protocol.wrappers.WrappedGameProfile;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scoreboard.*;
+import org.bukkit.util.Vector;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -48,6 +50,7 @@ public class Joueur implements Listener {
         this.pseudo = player.getName();
         this.sm = sm;
         this.board = sm.getNewScoreboard();
+        this.player.setCompassTarget(new Location(Bukkit.getWorlds().get(0),0,0,0)); //on dit au compass de pointer en 0 0
     }
 
     public Player getJoueur() {
@@ -201,6 +204,7 @@ public class Joueur implements Listener {
         text.remove(0);
 
         text.add(index, Main.startText + ChatColor.GRAY + "Tués: " + ChatColor.RED + numberOfKills);
+        text.set(index + 2, Main.startText + ChatColor.GRAY + "Centre: " + ChatColor.YELLOW + getCentreValue());
 
         int counter = 15;
         for (String s : text) {
@@ -211,6 +215,27 @@ public class Joueur implements Listener {
 
         this.player.setScoreboard(board);
         this.sidebarObjective.setDisplaySlot(DisplaySlot.SIDEBAR);
+    }
+
+    private String getCentreValue() {
+        double x = this.player.getLocation().getX();
+        double z = this.player.getLocation().getZ();
+        final String[] arrows = {"↑", "↗", "→", "↘", "↓", "↙", "←", "↖" };
+        int dist = (int)Math.sqrt(Math.pow(x, 2) + Math.pow(z, 2)); //théorème de Pytagore, calcul de la distance sur un plan, on ignore la hauteur 'y' ici.
+        /*
+        double angleSpawnJoueur = 0;
+
+        if (x == 0.0) {
+            x = 0.1; //on évite la division par 0 en créant une légère érreur.
+        }
+
+        if (x >= 0 && z >= 0) {
+            angleSpawnJoueur = Math.tan(z / x);
+        } else if (x >= 0 && z <= 0) {
+            angleSpawnJoueur = Math.tan(z / x);
+        }
+        */
+        return String.valueOf(dist);
     }
 
     public boolean isInTeam() {return this.equipe != null;}

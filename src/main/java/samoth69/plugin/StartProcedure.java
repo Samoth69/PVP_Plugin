@@ -36,6 +36,7 @@ public class StartProcedure extends BukkitRunnable {
                 //on obtient un nombre aléatoire sur X et sur Z.
                 //on détermine la limite du nombre
                 p = new Position(r.nextInt(sizeSpawnPoint) - sizeSpawnPoint / 2, 130, r.nextInt(sizeSpawnPoint) - sizeSpawnPoint / 2);
+                Bukkit.getLogger().info(p.getX() + " " + p.getZ());
                 b = Bukkit.getWorlds().get(0).getBiome(p.getX(), p.getZ());
             } while (b == Biome.DEEP_OCEAN || b == Biome.OCEAN || b == Biome.FROZEN_OCEAN);
             spawnSpot.add(p);
