@@ -15,7 +15,10 @@ public class GameRunningProcedure extends BukkitRunnable {
 
     private boolean taupeRevealed = false;
     private boolean borderIsReducing = false;
-    private boolean gameEnded = false;
+    //private boolean gameEnded = false;
+
+    private CoolDownTimer invinsibiliteCoolDown = new CoolDownTimer(new int[]{60, 30, 10, 5, 4, 3, 2, 1, 0});
+    private CoolDownTimer pvpCoolDown = new CoolDownTimer(new int[]{300, 120, 60, 30, 10, 5, 4, 3, 2, 1, 0});
 
     public GameRunningProcedure(Main main) {
         this.main = main;
@@ -29,7 +32,7 @@ public class GameRunningProcedure extends BukkitRunnable {
     public void run() {
         //FastDateFormat fdfChrono = FastDateFormat.getInstance("HH:mm:ss");
         long stopWatchSecondes = stopWatch.getTime() / 1000;
-        //long difInvisibilite = getDifInvinsibilite();
+        long difInvisibilite = getDifInvinsibilite();
         long difPVP = getDifPVP();
         long difTaupe = getDifTaupe();
         long difBordure = getDifBordure();
@@ -50,6 +53,33 @@ public class GameRunningProcedure extends BukkitRunnable {
 
         this.main.updateScoreboard(text);
 
+        if (invinsibiliteCoolDown.doReveal(difInvisibilite)) {
+            if (difInvisibilite > 0) {
+                Bukkit.broadcastMessage(ChatColor.YELLOW + "Fin de l'invinsibilité dans " + ChatColor.RED + ChatColor.BOLD + difInvisibilite +
+                        ChatColor.RESET + ChatColor.YELLOW + " secondes");
+            } else {
+                Bukkit.broadcastMessage(ChatColor.RED + "" + ChatColor.BOLD + "Vous prenez à présent des dégats");
+            }
+        }
+
+        if (pvpCoolDown.doReveal(difPVP)) {
+            if (difPVP > 60) {
+                Bukkit.broadcastMessage(ChatColor.YELLOW + "Activation du " +
+                        ChatColor.GOLD + "PVP" +
+                        ChatColor.YELLOW + " dans " +
+                        ChatColor.RED + ChatColor.BOLD + (int)(difPVP / 60) +
+                        ChatColor.RESET + ChatColor.YELLOW + " minutes");
+            } else if (difPVP > 0){
+                Bukkit.broadcastMessage(ChatColor.YELLOW + "Activation du " +
+                        ChatColor.GOLD + "PVP" +
+                        ChatColor.YELLOW + " dans " +
+                        ChatColor.RED + ChatColor.BOLD + difPVP +
+                        ChatColor.RESET + ChatColor.YELLOW + " secondes");
+            } else {
+                Bukkit.broadcastMessage(ChatColor.RED + "" + ChatColor.BOLD + "Le PVP est à présent actif");
+            }
+        }
+
         if (this.main.gameSettings.isEnableTaupe() && difTaupe < 0 && !taupeRevealed) {
             for (Map.Entry<UUID, Joueur> j : this.main.getTaupeJoueurs().entrySet()) {
                 StringBuilder sb = new StringBuilder();
@@ -69,54 +99,6 @@ public class GameRunningProcedure extends BukkitRunnable {
             Bukkit.broadcastMessage(ChatColor.RED + "La bordure commence à ce réduire");
             this.main.getWorldBorder().setSize(200, 1800);
             borderIsReducing = true;
-        }
-
-        //si cette condition est validé, c'est la fin de la partie
-        if (this.main.getNumberOfTeamsAlive() <= 1 && !this.gameEnded) {
-            //-------------------------------------------TOP DAMAGE-----------------------------------------------------
-            ArrayList<Joueur> topDmg = new ArrayList<>(main.getJoueurs().values());
-            topDmg.sort(Joueur.compTopDmg());
-
-            Bukkit.getLogger().info("TOP DAMAGE");
-            for (Joueur j : topDmg) {
-                Bukkit.getLogger().info(j.getPseudo() + ":" + j.getTotalDamage());
-            }
-
-            StringBuilder sb = new StringBuilder();
-            sb.append(ChatColor.DARK_BLUE + "" + ChatColor.BOLD + "------------TOP DAMAGE:------------\n");
-            for (int i = 0; i < 6 && i < topDmg.size(); i++) {
-                sb.append(ChatColor.GRAY + "N°" +
-                        ChatColor.GOLD + (i + 1) +
-                        ChatColor.DARK_GRAY + ": " + topDmg.get(i).getPseudoWithTeamAndColor() +
-                        ChatColor.DARK_GRAY + " (" +
-                        ChatColor.GRAY + topDmg.get(i).getTotalDamage() +
-                        ChatColor.DARK_GRAY + ")\n");
-            }
-            Bukkit.broadcastMessage(sb.toString());
-
-            //-------------------------------------------TOP KILLS-----------------------------------------------------
-            ArrayList<Joueur> topKill = new ArrayList<>(main.getJoueurs().values());
-            topKill.sort(Joueur.compKillCount());
-
-            Bukkit.getLogger().info("TOP KILL");
-            for (Joueur j : topKill) {
-                Bukkit.getLogger().info(j.getPseudo() + ":" + j.getNumberOfKills());
-            }
-
-            sb = new StringBuilder();
-
-            sb.append(ChatColor.DARK_BLUE + "" + ChatColor.BOLD + "------------TOP KILLS:------------\n");
-            for (int i = 0; i < 6 && i < topKill.size(); i++) {
-                sb.append(ChatColor.GRAY + "N°" +
-                        ChatColor.GOLD + (i + 1) +
-                        ChatColor.DARK_GRAY + ": " + topDmg.get(i).getPseudoWithTeamAndColor() +
-                        ChatColor.DARK_GRAY + " (" +
-                        ChatColor.GRAY + topDmg.get(i).getNumberOfKills() +
-                        ChatColor.DARK_GRAY + ")\n");
-            }
-            Bukkit.broadcastMessage(sb.toString());
-
-            this.main.gameStatusChanged(new GameStatusChangedEvent(Main.GameStatus.GAME_FINISHED));
         }
     }
 

@@ -1,5 +1,6 @@
 package samoth69.plugin;
 
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -46,8 +47,7 @@ public class Equipe implements Listener {
     };
 
     public void updateScoreboard(final ArrayList<String> globalText, int index) {
-        ArrayList<String> text = new ArrayList<>();
-        text.addAll(globalText);
+        ArrayList<String> text = new ArrayList<>(globalText);
 
         text.set(0, globalText.get(0) + this.getChatColor() + this.nomComplet);
 
@@ -117,9 +117,12 @@ public class Equipe implements Listener {
 
     public void tirerTaupe() {
         ArrayList<Joueur> al = new ArrayList<>();
+        //Bukkit.getLogger().info("-----");
         for (Map.Entry<UUID, Joueur> j : joueurs.entrySet()) {
             al.add(j.getValue());
+            //Bukkit.getLogger().info(j.getValue().getPseudo());
         }
-        al.get(new Random().nextInt(al.size() - 1)).setTaupe(true);
+        //Bukkit.getLogger().info(String.valueOf(al.size()));
+        al.get(new Random().nextInt(al.size())).setTaupe(true);
     }
 }

@@ -36,8 +36,6 @@ public class Joueur implements Listener {
     private ScoreboardManager sm;
     private Scoreboard board;
     private Objective sidebarObjective;
-    private Objective listObjective;
-    private Objective belowNameObjective;
 
     private boolean isTaupe = false;
     private boolean kitClaimed = false;
@@ -50,8 +48,6 @@ public class Joueur implements Listener {
         this.pseudo = player.getName();
         this.sm = sm;
         this.board = sm.getNewScoreboard();
-        this.listObjective = board.registerNewObjective("team", "dummy");
-        this.listObjective.setDisplaySlot(DisplaySlot.PLAYER_LIST);
     }
 
     public Player getJoueur() {
@@ -195,8 +191,7 @@ public class Joueur implements Listener {
     }
 
     public void updateScoreboard(final ArrayList<String> globalText, int index) {
-        ArrayList<String> text = new ArrayList<>();
-        text.addAll(globalText);
+        ArrayList<String> text = new ArrayList<>(globalText);
 
         if (this.sidebarObjective != null)
             this.sidebarObjective.unregister();
@@ -206,8 +201,6 @@ public class Joueur implements Listener {
         text.remove(0);
 
         text.add(index, Main.startText + ChatColor.GRAY + "Tués: " + ChatColor.RED + numberOfKills);
-
-        //text.add(player.getDisplayName());
 
         int counter = 15;
         for (String s : text) {

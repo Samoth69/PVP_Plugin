@@ -1,6 +1,7 @@
 package samoth69.plugin;
 
 import com.connorlinfoot.titleapi.TitleAPI;
+import com.sun.org.apache.xpath.internal.operations.Equals;
 import org.apache.commons.lang.StringUtils;
 import org.bukkit.*;
 import org.bukkit.block.Block;
@@ -53,7 +54,8 @@ public class Main implements Listener, CommandExecutor {
     private JavaPlugin jp;
     private ScoreboardManager sm = Bukkit.getScoreboardManager();
     private Scoreboard sb = sm.getNewScoreboard();
-    private Objective healthObjective = sb.registerNewObjective("Health", "Health");
+    private Objective listObjective;
+    private Objective belowNameObjective;
 
     private TeamGUI teamGUI = new TeamGUI();
     private ArrayList<Equipe> equipes = new ArrayList<>();
@@ -72,8 +74,11 @@ public class Main implements Listener, CommandExecutor {
         this.config = config;
         this.SpawnLocation = (Position)this.config.get("SpawnCoord");
         this.jp = jp;
-        this.healthObjective.setDisplaySlot(DisplaySlot.PLAYER_LIST);
 
+        this.listObjective = sb.registerNewObjective("health", "health");
+        this.listObjective.setDisplaySlot(DisplaySlot.PLAYER_LIST);
+        this.belowNameObjective = sb.registerNewObjective("blhealth", "health");
+        this.belowNameObjective.setDisplaySlot(DisplaySlot.BELOW_NAME);
 
         startCounter = new BukkitRunnable() {
             private Calendar cal = Calendar.getInstance(); //temps de démarage
@@ -82,7 +87,7 @@ public class Main implements Listener, CommandExecutor {
             @Override
             public void run() {
                 for (Map.Entry<UUID, Joueur> j : joueurs.entrySet()) {
-                    TitleAPI.sendTitle(j.getValue().getJoueur(), 0, 15, 5, ChatColor.RED + String.valueOf(counter), "Démarrage");
+                    TitleAPI.sendTitle(j.getValue().getJoueur(), 0, 15, 3, ChatColor.RED + String.valueOf(counter), "Démarrage");
                     counter--;
                     if (counter <= 0) {
                         //startProcedure.runTaskLater(jp, 1);
@@ -97,13 +102,10 @@ public class Main implements Listener, CommandExecutor {
 
     @EventHandler
     public void gameStatusChanged(GameStatusChangedEvent e) {
+        Bukkit.getLogger().info(e.toString());
         switch (e.getGameStatus()) {
             case SERVER_STARTED:
                 this.gameStatus = GameStatus.SERVER_STARTED;
-                Bukkit.getWorlds().get(0).setGameRuleValue("doDaylightCycle", "false");
-                //Bukkit.getWorlds().get(1).setGameRuleValue("doDaylightCycle", "false");
-                //Bukkit.getWorlds().get(2).setGameRuleValue("doDaylightCycle", "false");
-                Bukkit.getWorlds().get(0).setFullTime(0);
                 break;
             case INIT_GAME:
                 this.gameStatus = GameStatus.INIT_GAME;
@@ -119,16 +121,62 @@ public class Main implements Listener, CommandExecutor {
                 break;
             case TELEPORT_PLAYER:
                 this.gameStatus = GameStatus.TELEPORT_PLAYER;
-                if (this.startProcedure != null)
+                if (this.startProcedure == null)
                     this.startProcedure = new StartProcedure(this).runTaskTimer(jp, 0, 20);
                 break;
             case GAME_STARTED:
                 this.gameStatus = GameStatus.GAME_STARTED;
                 this.gameStarted = this.gameRunningProcedure.runTaskTimer(jp, 0, 10);
-                Bukkit.getWorlds().get(0).setGameRuleValue("naturalRegeneration", "false");
-                Bukkit.getWorlds().get(1).setGameRuleValue("naturalRegeneration", "false");
-                Bukkit.getWorlds().get(2).setGameRuleValue("naturalRegeneration", "false");
+                genSpawnStructure(SpawnLocation, (short)15, true);
                 this.gameRunningProcedure.startWatch();
+                break;
+            case GAME_FINISHED:
+                for (Map.Entry<UUID, Joueur> j : joueurs.entrySet()) {
+                    TitleAPI.sendTitle(j.getValue().getJoueur(), 2, 30, 2, "Partie fini", "BRAVO à TOUS !");
+                }
+                //-------------------------------------------TOP DAMAGE-----------------------------------------------------
+                ArrayList<Joueur> topDmg = new ArrayList<>(this.getJoueurs().values());
+                topDmg.sort(Joueur.compTopDmg());
+
+                Bukkit.getLogger().info("TOP DAMAGE");
+                for (Joueur j : topDmg) {
+                    Bukkit.getLogger().info(j.getPseudo() + ":" + j.getTotalDamage());
+                }
+
+                StringBuilder sb = new StringBuilder();
+                sb.append(ChatColor.DARK_BLUE + "" + ChatColor.BOLD + "------------TOP DAMAGE:------------\n");
+                for (int i = 0; i < 6 && i < topDmg.size(); i++) {
+                    sb.append(ChatColor.GRAY + "N°" +
+                            ChatColor.GOLD + (i + 1) +
+                            ChatColor.DARK_GRAY + ": " + topDmg.get(i).getPseudoWithTeamAndColor() +
+                            ChatColor.DARK_GRAY + " (" +
+                            ChatColor.GRAY + topDmg.get(i).getTotalDamage() +
+                            ChatColor.DARK_GRAY + ")\n");
+                }
+                Bukkit.broadcastMessage(sb.toString());
+
+                //-------------------------------------------TOP KILLS-----------------------------------------------------
+                ArrayList<Joueur> topKill = new ArrayList<>(this.getJoueurs().values());
+                topKill.sort(Joueur.compKillCount());
+
+                Bukkit.getLogger().info("TOP KILL");
+                for (Joueur j : topKill) {
+                    Bukkit.getLogger().info(j.getPseudo() + ":" + j.getNumberOfKills());
+                }
+
+                sb = new StringBuilder();
+
+                sb.append(ChatColor.DARK_BLUE + "" + ChatColor.BOLD + "------------TOP KILLS:------------\n");
+                for (int i = 0; i < 6 && i < topKill.size(); i++) {
+                    sb.append(ChatColor.GRAY + "N°" +
+                            ChatColor.GOLD + (i + 1) +
+                            ChatColor.DARK_GRAY + ": " + topDmg.get(i).getPseudoWithTeamAndColor() +
+                            ChatColor.DARK_GRAY + " (" +
+                            ChatColor.GRAY + topDmg.get(i).getNumberOfKills() +
+                            ChatColor.DARK_GRAY + ")\n");
+                }
+                Bukkit.broadcastMessage(sb.toString());
+                break;
         }
     }
 
@@ -144,6 +192,15 @@ public class Main implements Listener, CommandExecutor {
                 {
                     genSpawnStructure(SpawnLocation, (short)15);
                     SpawnStructureGenerated = true;
+
+                    Bukkit.getWorlds().get(0).setFullTime(0);
+                    Bukkit.getWorlds().get(0).setGameRuleValue("doDaylightCycle", "false");
+                    Bukkit.getWorlds().get(1).setGameRuleValue("doDaylightCycle", "false");
+                    Bukkit.getWorlds().get(2).setGameRuleValue("doDaylightCycle", "false");
+
+                    Bukkit.getWorlds().get(0).setGameRuleValue("naturalRegeneration", "false");
+                    Bukkit.getWorlds().get(1).setGameRuleValue("naturalRegeneration", "false");
+                    Bukkit.getWorlds().get(2).setGameRuleValue("naturalRegeneration", "false");
                 }
             }
         }
@@ -388,6 +445,13 @@ public class Main implements Listener, CommandExecutor {
 
     //démarre la partie
     private void startGame(CommandSender sender) {
+        for (Equipe e : this.equipes) {
+            if (e.getJoueurs().size() <= 0) {
+                sender.sendMessage(ChatColor.RED + "Au moins une équipe est vide, impossible de démarré la partie.");
+                return;
+            }
+        }
+
         if (equipes.size() <= 0) {
             sender.sendMessage(ChatColor.RED + "Aucune équipe, impossible de lancer la game");
         } else {
@@ -464,7 +528,7 @@ public class Main implements Listener, CommandExecutor {
         scoreboardTextBuffer.clear();
         scoreboardTextBuffer.add(ChatColor.YELLOW + "UHC " + ChatColor.DARK_GRAY + "| ");
         scoreboardTextBuffer.add(startText + ChatColor.DARK_GRAY + dateDuJour);
-        scoreboardTextBuffer.add("a");
+        scoreboardTextBuffer.add(" ");
         if (text != null) {
             scoreboardTextBuffer.addAll(text);
             scoreboardTextBuffer.add(" ");
@@ -521,12 +585,16 @@ public class Main implements Listener, CommandExecutor {
         if (gameStatus == GameStatus.GAME_STARTED) {
             e.getEntity().setGameMode(GameMode.SPECTATOR);
             this.joueurs.get(e.getEntity().getUniqueId()).setAlive(false);
-            this.joueurs.get(e.getEntity().getKiller().getUniqueId()).addKill();
+            if (e.getEntity().getKiller() != null) {
+                Bukkit.getLogger().info("added kill point for " + e.getEntity().getName() + " to " + e.getEntity().getKiller().getName());
+                this.joueurs.get(e.getEntity().getKiller().getUniqueId()).addKill();
+            } else {
+                Bukkit.getLogger().info("Didn't found a killer for " + e.getEntity().getName());
+            }
+
             if (getNumberOfTeamsAlive() <= 1) {
                 this.gameRunningProcedure.cancel();
-                for (Map.Entry<UUID, Joueur> j : joueurs.entrySet()) {
-                    TitleAPI.sendTitle(j.getValue().getJoueur(), 2, 30, 2, "Partie fini", "BRAVO à TOUS !");
-                }
+                this.gameStatusChanged(new GameStatusChangedEvent(GameStatus.GAME_FINISHED));
             }
         }
     }
@@ -631,6 +699,7 @@ public class Main implements Listener, CommandExecutor {
         if (e.getDamager() instanceof Player && e.getEntity() instanceof Player) {
             if (!this.gameRunningProcedure.isPVPActif()) {
                 e.getDamager().sendMessage(ChatColor.RED + "" + ChatColor.BOLD + "Le pvp n'est pas encore actif !");
+                Bukkit.getLogger().info(e.getDamager().getName() + " tried to hurt " + e.getEntity().getName());
                 e.setCancelled(true);
             } else {
                 Joueur j = this.joueurs.get(e.getDamager().getUniqueId());
