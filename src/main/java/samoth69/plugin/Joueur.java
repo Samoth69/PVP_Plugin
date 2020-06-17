@@ -70,17 +70,20 @@ public class Joueur implements Listener {
     public int getNumberOfKills() {return this.numberOfKills;}
 
     public boolean setEquipe(Equipe equipe) {
-        if (this.equipe == null || !equipe.containJoueur(this))
+        if (this.equipe == null || equipe == null || !equipe.containJoueur(this))
         {
             if (this.equipe != null)
                 this.equipe.removeJoueur(this);
 
             this.equipe = equipe;
-            this.equipe.addJoueur(this);
-
-            this.player.setScoreboard(board);
-
-            this.player.setDisplayName(this.equipe.getChatColor() + this.equipe.getNomShort() + " " + this.player.getName() + ChatColor.RESET);
+            if (equipe != null) {
+                this.equipe.addJoueur(this);
+                this.player.setScoreboard(board);
+                this.player.setDisplayName(this.equipe.getChatColor() + this.equipe.getNomShort() + " " + this.player.getName() + ChatColor.RESET);
+            } else {
+                this.player.setScoreboard(null);
+                this.player.setDisplayName(this.player.getName());
+            }
 
             PlayerInfoData pid = new PlayerInfoData(WrappedGameProfile.fromPlayer(this.player), 1,
                     EnumWrappers.NativeGameMode.SURVIVAL,

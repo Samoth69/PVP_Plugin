@@ -551,6 +551,9 @@ public class Main implements Listener, CommandExecutor {
 
     private void updateNumberOfTeams(int numberOfTeams) {
         equipes.clear();
+        for (Map.Entry<UUID, Joueur> j : this.joueurs.entrySet()) {
+            j.getValue().setEquipe(null);
+        }
         short color = 0;
         short prefixCounter = 0;
         for (int i = 0; i < numberOfTeams; i++) {
